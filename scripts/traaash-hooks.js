@@ -40,13 +40,13 @@ async function rollCompanyMotivation(actor) {
   let jubileeText = null;
   let moleRollTotal = null;
   let moleFull = null;
-  let companyTitle = mainText;
+  let companyDisplay = mainFull;
 
   if (rollTotal === 6) {
     const jubRoll = await new Roll("1d10").evaluate();
     const jubEntry = lookupEntry(JUBILEE_RESULTS, jubRoll.total);
     jubileeText = jubEntry?.text ?? "Unknown";
-    companyTitle = `Jubilee (${jubileeText})`;
+    companyDisplay = `${mainFull} Debt source: ${jubileeText}.`;
     await actor.setFlag(MODULE_ID, "company_jubilee", jubileeText);
   }
 
@@ -58,12 +58,12 @@ async function rollCompanyMotivation(actor) {
     moleRollTotal = moleRoll.total;
     const moleEntry = lookupEntry(COMPANY_RESULTS, moleRollTotal);
     moleFull = moleEntry?.full ?? moleEntry?.text ?? "Unknown";
-    companyTitle = `Mole (rival: ${moleEntry?.text ?? "Unknown"})`;
+    companyDisplay = `${mainFull} Rival corp leverage: ${moleFull}`;
     await actor.setFlag(MODULE_ID, "company_mole_reason", moleEntry?.text ?? "Unknown");
   }
 
   await actor.setFlag(MODULE_ID, "company_roll", rollTotal);
-  await actor.setFlag(MODULE_ID, "company", companyTitle);
+  await actor.setFlag(MODULE_ID, "company", companyDisplay);
 
   let chatContent = `<div style="border:1px solid #8b1a1a;padding:6px 10px;border-radius:3px;font-family:inherit">
     <div style="font-weight:bold;margin-bottom:4px">The Company <span style="color:#666;font-weight:normal;font-size:0.85em">(rolled ${rollTotal})</span></div>
@@ -135,21 +135,27 @@ Hooks.on("renderActorSheet", (app, html, _data) => {
   const actor = app.actor;
   if (!actor || actor.type !== "character") return;
 
+  const $html = html.jquery ? html : $(html);
+  const $bioTab = $html.find('.tab[data-tab="description"]').first();
+  if (!$bioTab.length) return;
+
   const company = actor.getFlag(MODULE_ID, "company");
   const valueHtml = company
-    ? `<span>${company}</span>`
-    : `<span style="color:#888;font-style:italic">Not yet rolled</span>`;
+    ? `<p style="margin:0;font-size:0.88em">${company}</p>`
+    : `<p style="margin:0;font-size:0.88em;color:#888;font-style:italic">Not yet rolled — use the ↻ button to roll.</p>`;
 
-  const $banner = $(`<div class="traaash-company-banner" style="display:flex;align-items:center;gap:6px;padding:3px 10px;background:rgba(139,26,26,0.06);border-bottom:1px solid rgba(139,26,26,0.18);font-size:0.8em;flex-wrap:wrap">
-    <span style="text-transform:uppercase;letter-spacing:1px;color:#8b1a1a;font-weight:bold;font-size:0.85em;white-space:nowrap">The Company:</span>
+  const $section = $(`<div class="traaash-company-section" style="border:1px solid rgba(139,26,26,0.35);border-radius:3px;padding:8px 10px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+      <span style="font-weight:bold;text-transform:uppercase;letter-spacing:1px;font-size:0.78em;color:#8b1a1a">The Company</span>
+      <button type="button" class="traaash-reroll-btn" style="padding:0 6px;font-size:0.78em;line-height:1.6;border-radius:2px" title="Roll The Company">&#x21bb;</button>
+    </div>
+    <p style="margin:0 0 6px;font-size:0.78em;color:#888;font-style:italic">Motivation to carry out the mission, even in the face of the horrors to come.</p>
     ${valueHtml}
-    <button type="button" class="traaash-reroll-btn" style="margin-left:auto;padding:0 6px;font-size:0.78em;line-height:1.5;border-radius:2px;flex-shrink:0" title="Roll The Company">&#x21bb;</button>
   </div>`);
 
-  const $html = html.jquery ? html : $(html);
-  $html.find("nav.mosh.sheet-tabs").first().before($banner);
+  $bioTab.prepend($section);
 
-  $banner.find(".traaash-reroll-btn").on("click", async (evt) => {
+  $section.find(".traaash-reroll-btn").on("click", async (evt) => {
     evt.preventDefault();
     await rollCompanyMotivation(actor);
   });
