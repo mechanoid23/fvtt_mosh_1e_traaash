@@ -91,9 +91,13 @@ Hooks.once("ready", () => {
   game.traaash = { rollCompanyMotivation };
 });
 
-Hooks.on("createActor", async (actor, _options, userId) => {
+// Fire when a class is assigned for the first time — covers the Character Generator flow.
+Hooks.on("updateActor", async (actor, changes, _options, userId) => {
   if (userId !== game.user.id) return;
   if (actor.type !== "character") return;
+  const newClass = changes?.system?.class?.value;
+  if (!newClass) return;
+  if (actor.getFlag(MODULE_ID, "company_roll") != null) return;
   setTimeout(async () => {
     const roll = await foundry.applications.api.DialogV2.confirm({
       window: { title: "The Company" },
