@@ -2,28 +2,26 @@
 
 > Community tables and extras from [traaa.sh](https://www.traaa.sh) for Mothership 1e.
 
-## Contents
-
-- **The Company** — d10 motivation table: roll at character creation to find out why you're in the corporation's pocket
-- **Jubilee** — d10 sub-table for Jubilee loan debt sources (rolled when The Company result is 6)
-- **Roll: The Company** — macro to roll for any character
-
 ## The Company
+
+*Motivation to carry out the mission, even in the face of the horrors to come.*
 
 Source: [https://www.traaa.sh/d10-reasons-youre-in-the-corporations-pocket](https://www.traaa.sh/d10-reasons-youre-in-the-corporations-pocket)
 
+Each player rolls 1d10 at character creation to find out why they're in the corporation's pocket.
+
 | d10 | Result |
 |---|---|
-| 1 | Student Debt |
-| 2 | Body Modification |
-| 3 | Family Member's Debt |
-| 4 | Scrip |
-| 5 | Work Visa |
-| 6 | Jubilee *(roll sub-table)* |
-| 7 | Set Up |
-| 8 | Citizenship |
-| 9 | Investment |
-| 10 | Mole *(re-roll excluding 10 for rival corp's leverage)* |
+| 1 | Student Debt — The corporation paid for your higher education or a critical training program. You owe them for the opportunity. |
+| 2 | Body Modification — An experimental or costly procedure, fully covered by the corp. The debt keeps you close. |
+| 3 | Family Member's Debt — Someone you love owes the company big. You're the collateral. |
+| 4 | Scrip — You owe an enormous amount of company scrip. The interest compounds daily. |
+| 5 | Work Visa — Your legal right to exist in this sector is company-sponsored. One word from them and you're gone. |
+| 6 | Jubilee — You took out a Jubilee loan. *(roll sub-table)* |
+| 7 | Set Up — You were framed for something you didn't do — or something you did. The corp holds the evidence. |
+| 8 | Citizenship — They can make you a citizen, or unmake you. Your legal identity is their asset. |
+| 9 | Investment — You used company capital for a private venture. It hasn't paid off. It may never. |
+| 10 | Mole — You work for a rival corporation, embedded here. But they found out. Now they own you too. *(re-roll excluding 10 for rival corp's leverage)* |
 
 ### Jubilee Debt Source (d10)
 
@@ -42,10 +40,16 @@ Source: [https://www.traaa.sh/d10-reasons-youre-in-the-corporations-pocket](http
 
 ## Features
 
-- **Auto-prompt on new character**: when a new character actor is created, a dialog offers to roll The Company immediately
-- **The Company field on all character sheets**: displayed above the sheet tabs, with a re-roll button (↻)
-- **The Company compendium tables**: available in the Traaa.sh Tables (1e) compendium for manual rolls
-- **Roll: The Company macro**: select a token and run the macro to roll for any character
+- **Auto-prompt during character generation**: when a class is assigned via the Mothership Character Generator, a dialog offers to roll The Company
+- **The Company field in the Bio tab**: displayed at the top of every character sheet's Bio tab, showing the full result text with a ↻ re-roll button
+- **Jubilee sub-roll**: automatically rolls and appends the debt source when result is 6
+- **Mole re-roll**: re-rolls excluding 10, appends the rival corp's full leverage text when result is 10
+- **Roll: The Company macro**: select a token and run the macro to roll for any character at any time
+- **Compendium tables**: The Company and Jubilee tables available for manual use in Foundry
+
+## Compatibility
+
+Foundry VTT v11–v14. Uses `DialogV2` on v12+ with automatic fallback to the legacy `Dialog` API on v11.
 
 ## Licensing
 
