@@ -1,0 +1,48 @@
+{
+  "id": "fvtt_mosh_1e_traaash",
+  "title": "Mothership 1e — Traaa.sh Extras",
+  "description": "Community content and tables from traaa.sh for Mothership 1e. Adds The Company motivation system: players roll 1d10 to discover why their character is in the corporation's pocket.",
+  "version": "0.1.0",
+  "compatibility": {
+    "minimum": "11",
+    "verified": "14"
+  },
+  "authors": [
+    {
+      "name": "mechanoid23"
+    }
+  ],
+  "packs": [
+    {
+      "label": "Traaa.sh Tables (1e)",
+      "type": "RollTable",
+      "name": "rolltables_traaash_1e",
+      "path": "packs/rolltables_traaash_1e.db",
+      "system": "mosh"
+    },
+    {
+      "label": "Traaa.sh Macros (1e)",
+      "type": "Macro",
+      "name": "macros_traaash_1e",
+      "path": "packs/macros_traaash_1e.db",
+      "system": "mosh"
+    }
+  ],
+  "relationships": {
+    "systems": [
+      {
+        "id": "mosh",
+        "type": "system",
+        "manifest": "https://raw.githubusercontent.com/mechanoid23/fvtt-mosh-fork/master/system.json",
+        "compatibility": {
+          "minimum": "0.5.25",
+          "verified": "0.6.28"
+        }
+      }
+    ]
+  },
+  "url": "https://github.com/mechanoid23/fvtt_mosh_1e_traaash",
+  "manifest": "https://raw.githubusercontent.com/mechanoid23/fvtt_mosh_1e_traaash/main/module.json",
+  "scripts": ["scripts/traaash-hooks.js"],
+  "download": "https://github.com/mechanoid23/fvtt_mosh_1e_traaash/releases/download/v0.1.0/fvtt_mosh_1e_traaash.zip"
+}
