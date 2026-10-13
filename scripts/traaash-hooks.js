@@ -87,8 +87,30 @@ async function rollCompanyMotivation(actor) {
   }
 }
 
+// Version-compatible confirm dialog (DialogV2 = v12+, Dialog = v11).
+async function confirmCompanyRoll(actorName) {
+  const title = "The Company";
+  const content = `<p>Roll <strong>The Company</strong> for <strong>${actorName}</strong>?</p><p style="font-size:0.85em;color:#888">Find out why they're in the corporation's pocket.</p>`;
+  if (foundry.applications?.api?.DialogV2?.confirm) {
+    return foundry.applications.api.DialogV2.confirm({ window: { title }, content });
+  }
+  return new Promise(resolve => {
+    new Dialog({
+      title,
+      content,
+      buttons: {
+        yes: { label: "Yes", callback: () => resolve(true) },
+        no:  { label: "No",  callback: () => resolve(false) },
+      },
+      default: "yes",
+      close: () => resolve(false),
+    }).render(true);
+  });
+}
+
 Hooks.once("ready", () => {
   game.traaash = { rollCompanyMotivation };
+  console.log("fvtt_mosh_1e_traaash | ready");
 });
 
 // Fire when a class is assigned for the first time — covers the Character Generator flow.
@@ -98,13 +120,15 @@ Hooks.on("updateActor", async (actor, changes, _options, userId) => {
   const newClass = changes?.system?.class?.value;
   if (!newClass) return;
   if (actor.getFlag(MODULE_ID, "company_roll") != null) return;
+  console.log(`fvtt_mosh_1e_traaash | class set on ${actor.name}, prompting The Company roll`);
   setTimeout(async () => {
-    const roll = await foundry.applications.api.DialogV2.confirm({
-      window: { title: "The Company" },
-      content: `<p>Roll <strong>The Company</strong> for <strong>${actor.name}</strong>?</p><p style="font-size:0.85em;color:#888">Find out why they're in the corporation's pocket.</p>`,
-    });
-    if (roll) await rollCompanyMotivation(actor);
-  }, 500);
+    try {
+      const roll = await confirmCompanyRoll(actor.name);
+      if (roll) await rollCompanyMotivation(actor);
+    } catch(e) {
+      console.error("fvtt_mosh_1e_traaash | The Company dialog error:", e);
+    }
+  }, 800);
 });
 
 Hooks.on("renderActorSheet", (app, html, _data) => {
