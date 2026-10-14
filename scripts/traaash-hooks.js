@@ -119,6 +119,15 @@ Hooks.once("init", () => {
     type: Boolean,
     default: true,
   });
+
+  game.settings.register(MODULE_ID, "enablePetSkills", {
+    name: "Pet Skill Tree",
+    hint: "Enables the Pet Skill Tree compendium pack (17 skills across Trained / Expert / Master tiers with a prerequisite tree). Requires a world reload to take effect.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
 });
 
 // ---- Ready ----

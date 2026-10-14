@@ -47,6 +47,30 @@ Each player rolls 1d10 at character creation to find out why they're in the corp
 - **Roll: The Company macro**: select a token and run the macro to roll for any character at any time
 - **Compendium tables**: The Company and Jubilee tables available for manual use in Foundry
 
+## Pet Skill Tree
+
+A tiered skill tree for pet companions, from [traaa.sh](https://www.traaa.sh). All 17 skills are available in the **Pet Skill Tree (1e)** compendium pack.
+
+```
+Trained (+10%)       Expert (+15%)          Master (+20%)
+══════════════       ══════════════════     ═════════════════
+Calm Under Fire ─┬─▶ Companion Training ──▶ Panic Training
+                 └┐
+Tooth & Claw ──┬──┴▶ Military Training ───▶ Xeno Tracking
+              ┌┘
+Tracking ────┬┴────▶ Hunting ─────────┬───▶ Search & Rescue
+             └┐                      ┌┘
+Foraging ─────┼─┬──▶ Detect ─────────┼────▶ Detect Substance
+             ┌┘ │                    └┐
+Rimwise ─────┘ ┌┘                     └───▶ Detect Disease
+               │
+Safety ────────┴─┬─▶ Zero-G Training
+                ┌┘
+Athletics ──────┘
+```
+
+Each skill carries its prerequisite(s) in `prerequisite_ids` following the primary path shown above. Some expert skills are reachable via multiple trained skills — see each item's description.
+
 ## Admin settings
 
 In Foundry: **Game Settings → Configure Settings → Module Settings → Mothership 1e — Traaa.sh Extras**
@@ -54,6 +78,7 @@ In Foundry: **Game Settings → Configure Settings → Module Settings → Mothe
 | Setting | Default | Description |
 |---|---|---|
 | The Company — Character Creation | On | Auto-prompt after Choose Skills; displays result in Bio tab |
+| Pet Skill Tree | On | Enables the Pet Skill Tree compendium pack |
 
 ## Compatibility
 

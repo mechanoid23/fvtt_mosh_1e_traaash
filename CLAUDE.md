@@ -12,6 +12,7 @@ NeDB compendium packs — one JSON document per line in `.db` files under `packs
 |---|---|
 | `rolltables_traaash_1e.db` | "The Company" (1d10) and "Jubilee — Debt Source" (1d10) rolltables |
 | `macros_traaash_1e.db` | "Roll: The Company" macro |
+| `items_pet_skills_1e.db` | 17 pet skills (7 Trained / 5 Expert / 5 Master) with prerequisite tree |
 
 ## Rolltable IDs
 
@@ -37,6 +38,7 @@ Settings are registered in `init` (required by Foundry before `ready`). Each fea
 | Setting key | Default | Controls |
 |---|---|---|
 | `enableCompany` | `true` | The Company auto-prompt and Bio tab display |
+| `enablePetSkills` | `true` | Pet Skill Tree compendium availability (future: sheet UI) |
 
 New feature settings should be added here following the same pattern.
 
@@ -79,6 +81,36 @@ Automatically rolls the Jubilee sub-table. Appends debt source to the display st
 ### Mole (roll = 10)
 
 Re-rolls 1d10 until the result is not 10, then looks up that result in the main table as the rival corporation's leverage. Appends the full rival result text to the display string.
+
+## Pet Skill Tree
+
+Pack: `items_pet_skills_1e.db`. All item IDs are in `Compendium.fvtt_mosh_1e_traaash.items_pet_skills_1e.Item.<id>`.
+
+### Skill IDs
+
+| ID | Name | Rank | Prerequisite IDs |
+|---|---|---|---|
+| `Tr1CalmUndrFire0` | Calm Under Fire | Trained | — |
+| `Tr2ToothAndClaw0` | Tooth & Claw | Trained | — |
+| `Tr3TrackingPet00` | Tracking | Trained | — |
+| `Tr4ForagingPet00` | Foraging | Trained | — |
+| `Tr5RimwisePet000` | Rimwise | Trained | — |
+| `Tr6SafetyPet0000` | Safety | Trained | — |
+| `Tr7AthleticsPet0` | Athletics | Trained | — |
+| `Ex1CompanionTrng` | Companion Training | Expert | `Tr1CalmUndrFire0` |
+| `Ex2MilitaryTrng0` | Military Training | Expert | `Tr2ToothAndClaw0` (also via Calm Under Fire or Tracking) |
+| `Ex3HuntingPet000` | Hunting | Expert | `Tr3TrackingPet00` (also via Tooth & Claw) |
+| `Ex4DetectPet0000` | Detect | Expert | `Tr3TrackingPet00` (also via Foraging or Rimwise) |
+| `Ex5ZeroGTraining` | Zero-G Training | Expert | `Tr7AthleticsPet0` (also via Safety) |
+| `Ms1PanicTraining` | Panic Training | Master | `Ex1CompanionTrng` |
+| `Ms2XenoTracking0` | Xeno Tracking | Master | `Ex2MilitaryTrng0` |
+| `Ms3SearchRescue0` | Search & Rescue | Master | `Ex3HuntingPet000` (also via Detect) |
+| `Ms4DetectSubst00` | Detect Substance | Master | `Ex4DetectPet0000` |
+| `Ms5DetectDisease` | Detect Disease | Master | `Ex4DetectPet0000` |
+
+### Prerequisite note
+
+`prerequisite_ids` encodes the primary tree path (AND logic in the mosh system). Alternative paths shown in the ASCII tree and item descriptions are advisory — a GM may grant Expert/Master skills from any valid contributing Trained skill.
 
 ## Source
 
