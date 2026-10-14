@@ -47,7 +47,12 @@ New feature settings should be added here following the same pattern.
 
 ### The Company feature (guarded by `enableCompany`)
 
-- `traaash.skillsChosen` hook listener — fires after the Choose Skills macro completes (both the normal path and the early-return path for classes with no skill choices); prompts to roll The Company if not yet rolled. The hook is emitted by `mcgChooseSkillsA` via `Hooks.callAll("traaash.skillsChosen", myActor)`.
+Two triggers fire `_promptCompany(actor)`, with the hook cancelling the fallback if both would fire:
+
+**Primary** — `traaash.skillsChosen` hook (requires MCG v1.0.3+): `mcgChooseSkillsA` fires `Hooks.callAll("traaash.skillsChosen", myActor)` immediately after skills are confirmed. This cancels the fallback timer and prompts without delay.
+
+**Fallback** — `createItem` watch: when `updateActor` fires with a new class, the actor is added to `_pendingCompany` (a `Map<actorId, timerId|null>`). Each skill item created on that actor resets a 5-second debounce timer. When the timer fires (no new skills for 5s), Company is prompted. Handles older MCG versions, world-imported macro copies, or any case where the hook never fires.
+
 - `renderActorSheet` hook — injects The Company block at the top of the Bio tab (`.tab[data-tab="description"]`) on all character sheets. Skipped entirely when `enableCompany` is off.
 
 ### The Company block (Bio tab)

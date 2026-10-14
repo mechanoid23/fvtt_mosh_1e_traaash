@@ -130,17 +130,55 @@ Hooks.once("ready", () => {
 
 // ---- The Company ----
 
-// Fire after the Choose Skills macro completes — sequenced after skills are confirmed.
-Hooks.on("traaash.skillsChosen", async (actor) => {
+// Tracks actors whose class was just set this session; value is a pending fallback timer ID or null.
+const _pendingCompany = new Map();
+
+function _promptCompany(actor) {
   if (!game.settings.get(MODULE_ID, "enableCompany")) return;
   if (actor.getFlag(MODULE_ID, "company_roll") != null) return;
-  console.log(`fvtt_mosh_1e_traaash | skills chosen for ${actor.name}, prompting The Company roll`);
-  try {
-    const roll = await confirmCompanyRoll(actor.name);
-    if (roll) await rollCompanyMotivation(actor);
-  } catch(e) {
-    console.error("fvtt_mosh_1e_traaash | The Company dialog error:", e);
-  }
+  console.log(`fvtt_mosh_1e_traaash | prompting The Company roll for ${actor.name}`);
+  confirmCompanyRoll(actor.name)
+    .then(roll => roll ? rollCompanyMotivation(actor) : null)
+    .catch(e => console.error("fvtt_mosh_1e_traaash | The Company dialog error:", e));
+}
+
+// Mark actor as pending when a class is first assigned.
+Hooks.on("updateActor", (actor, changes, _options, userId) => {
+  if (userId !== game.user.id) return;
+  if (actor.type !== "character") return;
+  if (!changes?.system?.class?.value) return;
+  if (actor.getFlag(MODULE_ID, "company_roll") != null) return;
+  if (!game.settings.get(MODULE_ID, "enableCompany")) return;
+  _pendingCompany.set(actor.id, null);
+});
+
+// Primary trigger: MCG v1.0.3+ fires this after Choose Skills confirms.
+// Cancels the fallback timer and prompts immediately.
+Hooks.on("traaash.skillsChosen", (actor) => {
+  const timer = _pendingCompany.get(actor.id);
+  if (timer) clearTimeout(timer);
+  _pendingCompany.delete(actor.id);
+  _promptCompany(actor);
+});
+
+// Fallback trigger: watch for skill items being added to a pending actor.
+// Resets a 5-second debounce on each new skill; fires Company after the burst settles.
+// This handles cases where MCG's hook never fires (older MCG version, world-imported macro copy, etc.).
+Hooks.on("createItem", (item, _options, userId) => {
+  if (userId !== game.user.id) return;
+  if (item.type !== "skill") return;
+  const actor = item.parent;
+  if (!actor || actor.type !== "character") return;
+  if (!_pendingCompany.has(actor.id)) return;
+
+  const existing = _pendingCompany.get(actor.id);
+  if (existing) clearTimeout(existing);
+
+  const timer = setTimeout(() => {
+    _pendingCompany.delete(actor.id);
+    _promptCompany(actor);
+  }, 5000);
+  _pendingCompany.set(actor.id, timer);
 });
 
 Hooks.on("renderActorSheet", (app, html, _data) => {
