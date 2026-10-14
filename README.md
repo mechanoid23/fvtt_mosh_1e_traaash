@@ -75,10 +75,10 @@ Each skill carries its prerequisite(s) in `prerequisite_ids` following the prima
 
 In Foundry: **Game Settings → Configure Settings → Module Settings → Mothership 1e — Traaa.sh Extras**
 
-| Setting | Default | Description |
-|---|---|---|
-| The Company — Character Creation | On | Auto-prompt after Choose Skills; displays result in Bio tab |
-| Pet Skill Tree | On | Enables the Pet Skill Tree compendium pack |
+| Setting | Default | Wired | Description |
+|---|---|---|---|
+| The Company — Character Creation | On | ✓ fully | Suppresses the auto-prompt and Bio tab section when off |
+| Pet Skill Tree | On | advisory | The compendium pack is always present; this toggle is a placeholder for future sheet UI features |
 
 ## Compatibility
 

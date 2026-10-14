@@ -35,12 +35,12 @@ NeDB compendium packs — one JSON document per line in `.db` files under `packs
 
 Settings are registered in `init` (required by Foundry before `ready`). Each feature has one `Boolean` setting with `scope: "world"` and `config: true`, so they appear in **Game Settings → Configure Settings → Module Settings** and are changeable only by GMs.
 
-| Setting key | Default | Controls |
-|---|---|---|
-| `enableCompany` | `true` | The Company auto-prompt and Bio tab display |
-| `enablePetSkills` | `true` | Pet Skill Tree compendium availability (future: sheet UI) |
+| Setting key | Default | Status | Effect when `false` |
+|---|---|---|---|
+| `enableCompany` | `true` | Fully wired | Suppresses `traaash.skillsChosen` listener, `createItem` watcher, and `renderActorSheet` Bio tab injection |
+| `enablePetSkills` | `true` | Advisory only | No runtime effect — Foundry does not support dynamically hiding compendium packs declared in `module.json`. Reserved for future sheet UI. |
 
-New feature settings should be added here following the same pattern.
+New feature settings should be added here following the same pattern. If a future feature has a runtime hook, guard it with `game.settings.get(MODULE_ID, "<key>")` at the top of that hook handler.
 
 ### Core functions
 
