@@ -132,9 +132,28 @@ Hooks.once("init", () => {
 
 // ---- Ready ----
 
-Hooks.once("ready", () => {
+// All UUIDs and IDs from every items_pet_skills_1e pack across all modules.
+// Populated at ready so the renderDialog filter covers terminal, traaash, and any future pack.
+const _petSkillPackKeys = new Set();
+
+Hooks.once("ready", async () => {
   game.traaash = { rollCompanyMotivation };
-  console.log("fvtt_mosh_1e_traaash | ready");
+
+  const PET_PACK_NAME = "items_pet_skills_1e";
+  for (const pack of game.packs) {
+    if (pack.documentName !== "Item" || pack.metadata.name !== PET_PACK_NAME) continue;
+    try {
+      await pack.getIndex();
+      for (const entry of pack.index) {
+        _petSkillPackKeys.add(entry.uuid);
+        _petSkillPackKeys.add(entry._id);
+      }
+    } catch(e) {
+      console.warn(`fvtt_mosh_1e_traaash | could not index ${pack.collection}:`, e);
+    }
+  }
+
+  console.log(`fvtt_mosh_1e_traaash | ready (${_petSkillPackKeys.size} pet skill keys cached)`);
 });
 
 // ---- The Company ----
@@ -370,18 +389,26 @@ async function _showPetSkillPicker(item) {
   });
 }
 
-// Remove pet skill entries from any dialog that includes them (e.g. MCG skill picker).
-// Pet skills are for pets only and must not appear in character skill selection.
+// Remove pet skill entries from any dialog (e.g. MCG skill picker).
+// Checks all data-* attributes and the label's outerHTML so it works regardless of
+// which attribute name MCG uses. Also covers fvtt_mosh_1e_terminal's pet skills pack.
 Hooks.on("renderDialog", (_app, html, _data) => {
   const $html = html.jquery ? html : $(html);
-  const petIds = new Set(PET_SKILLS.map(s => s.id));
   const PET_PACK = "items_pet_skills_1e";
 
   $html.find("input[type='checkbox']").each((_i, el) => {
-    const candidates = [el.dataset.uuid, el.dataset.id, el.dataset.skillId].filter(Boolean);
-    if (candidates.some(a => a.includes(PET_PACK) || petIds.has(a) || petIds.has(a.split(".").pop()))) {
-      $(el).closest("label").remove();
-    }
+    const attrValues = Object.values(el.dataset);
+    const labelHtml = el.closest("label")?.outerHTML ?? el.parentElement?.outerHTML ?? "";
+
+    const isPetSkill =
+      labelHtml.includes(PET_PACK) ||
+      attrValues.some(v =>
+        v.includes(PET_PACK) ||
+        _petSkillPackKeys.has(v) ||
+        _petSkillPackKeys.has(v.split(".").pop())
+      );
+
+    if (isPetSkill) $(el).closest("label").remove();
   });
 });
 
