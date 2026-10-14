@@ -32,7 +32,7 @@ NeDB compendium packs — one JSON document per line in `.db` files under `packs
 
 - `rollCompanyMotivation(actor)` — core function; exposed as `game.traaash.rollCompanyMotivation` after `ready`
 - `confirmCompanyRoll(actorName)` — version-compatible confirm dialog: uses `DialogV2` on Foundry v12+, falls back to legacy `Dialog` on v11
-- `updateActor` hook — detects when `system.class.value` is set for the first time (fires during the Character Generator flow); prompts to roll The Company if not yet rolled
+- `traaash.skillsChosen` hook listener — fires after the Choose Skills macro completes (both the normal path and the early-return path for classes with no skill choices); prompts to roll The Company if not yet rolled. The hook is emitted by `mcgChooseSkillsA` via `Hooks.callAll("traaash.skillsChosen", myActor)`.
 - `renderActorSheet` hook — injects The Company block at the top of the Bio tab (`.tab[data-tab="description"]`) on all character sheets
 
 ### The Company block (Bio tab)
@@ -41,7 +41,7 @@ Rendered at the top of the Bio tab, above the biography editor. Contains:
 - Header: "THE COMPANY" (uppercase, dark red `#8b1a1a`)
 - Description: *"Motivation to carry out the mission, even in the face of the horrors to come."*
 - Full result text, e.g. `"Family Member's Debt — Someone you love owes the company big. You're the collateral."`
-- ↻ re-roll button
+- No reroll button — a GM can reroll via `game.traaash.rollCompanyMotivation(actor)` in the console
 
 ### Actor flags (namespace `fvtt_mosh_1e_traaash`)
 

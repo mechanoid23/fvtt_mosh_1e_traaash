@@ -113,22 +113,16 @@ Hooks.once("ready", () => {
   console.log("fvtt_mosh_1e_traaash | ready");
 });
 
-// Fire when a class is assigned for the first time — covers the Character Generator flow.
-Hooks.on("updateActor", async (actor, changes, _options, userId) => {
-  if (userId !== game.user.id) return;
-  if (actor.type !== "character") return;
-  const newClass = changes?.system?.class?.value;
-  if (!newClass) return;
+// Fire after the Choose Skills macro completes — sequenced after skills are confirmed.
+Hooks.on("traaash.skillsChosen", async (actor) => {
   if (actor.getFlag(MODULE_ID, "company_roll") != null) return;
-  console.log(`fvtt_mosh_1e_traaash | class set on ${actor.name}, prompting The Company roll`);
-  setTimeout(async () => {
-    try {
-      const roll = await confirmCompanyRoll(actor.name);
-      if (roll) await rollCompanyMotivation(actor);
-    } catch(e) {
-      console.error("fvtt_mosh_1e_traaash | The Company dialog error:", e);
-    }
-  }, 800);
+  console.log(`fvtt_mosh_1e_traaash | skills chosen for ${actor.name}, prompting The Company roll`);
+  try {
+    const roll = await confirmCompanyRoll(actor.name);
+    if (roll) await rollCompanyMotivation(actor);
+  } catch(e) {
+    console.error("fvtt_mosh_1e_traaash | The Company dialog error:", e);
+  }
 });
 
 Hooks.on("renderActorSheet", (app, html, _data) => {
@@ -142,21 +136,15 @@ Hooks.on("renderActorSheet", (app, html, _data) => {
   const company = actor.getFlag(MODULE_ID, "company");
   const valueHtml = company
     ? `<p style="margin:0;font-size:0.88em">${company}</p>`
-    : `<p style="margin:0;font-size:0.88em;color:#888;font-style:italic">Not yet rolled — use the ↻ button to roll.</p>`;
+    : `<p style="margin:0;font-size:0.88em;color:#888;font-style:italic">Not yet rolled.</p>`;
 
   const $section = $(`<div class="traaash-company-section" style="border:1px solid rgba(139,26,26,0.35);border-radius:3px;padding:8px 10px;margin-bottom:12px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">
+    <div style="margin-bottom:3px">
       <span style="font-weight:bold;text-transform:uppercase;letter-spacing:1px;font-size:0.78em;color:#8b1a1a">The Company</span>
-      <button type="button" class="traaash-reroll-btn" style="padding:0 6px;font-size:0.78em;line-height:1.6;border-radius:2px" title="Roll The Company">&#x21bb;</button>
     </div>
     <p style="margin:0 0 6px;font-size:0.78em;color:#888;font-style:italic">Motivation to carry out the mission, even in the face of the horrors to come.</p>
     ${valueHtml}
   </div>`);
 
   $bioTab.prepend($section);
-
-  $section.find(".traaash-reroll-btn").on("click", async (evt) => {
-    evt.preventDefault();
-    await rollCompanyMotivation(actor);
-  });
 });

@@ -40,8 +40,8 @@ Each player rolls 1d10 at character creation to find out why they're in the corp
 
 ## Features
 
-- **Auto-prompt during character generation**: when a class is assigned via the Mothership Character Generator, a dialog offers to roll The Company
-- **The Company field in the Bio tab**: displayed at the top of every character sheet's Bio tab, showing the full result text with a ↻ re-roll button
+- **Auto-prompt during character generation**: after the player confirms their skill choices in the Mothership Character Generator's Choose Skills step, a dialog offers to roll The Company — sequenced after skills, not concurrent with them
+- **The Company field in the Bio tab**: displayed at the top of every character sheet's Bio tab, showing the full result text; GMs can reroll at any time via `game.traaash.rollCompanyMotivation(actor)` in the browser console
 - **Jubilee sub-roll**: automatically rolls and appends the debt source when result is 6
 - **Mole re-roll**: re-rolls excluding 10, appends the rival corp's full leverage text when result is 10
 - **Roll: The Company macro**: select a token and run the macro to roll for any character at any time
