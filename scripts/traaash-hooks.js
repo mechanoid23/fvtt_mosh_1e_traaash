@@ -407,11 +407,11 @@ Hooks.on("renderItemSheet", (app, html, _data) => {
       await item.setFlag(MODULE_ID, "petSkillsEnabled", true);
       await item.setFlag(MODULE_ID, "petSkills", chosen);
     });
-    $body.after($link);
+    $body.prepend($link);
     return;
   }
 
-  const $section = $(`<div class="traaash-pet-skills-section" style="border-top:1px solid rgba(0,0,0,0.12);padding:10px 12px 6px;margin-top:4px">
+  const $section = $(`<div class="traaash-pet-skills-section" style="border-bottom:1px solid rgba(0,0,0,0.12);padding:10px 12px 6px;margin-bottom:4px">
     <div style="font-size:0.78em;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#555;margin-bottom:8px">Pet Skills</div>
     ${_buildPetSkillsHtml(owned)}
   </div>`);
@@ -428,7 +428,7 @@ Hooks.on("renderItemSheet", (app, html, _data) => {
     await item.setFlag(MODULE_ID, "petSkills", [...current]);
   });
 
-  $body.after($section);
+  $body.prepend($section);
 });
 
 Hooks.on("renderActorSheet", (app, html, _data) => {
