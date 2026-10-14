@@ -12,7 +12,7 @@ NeDB compendium packs — one JSON document per line in `.db` files under `packs
 |---|---|
 | `rolltables_traaash_1e.db` | "The Company" (1d10) and "Jubilee — Debt Source" (1d10) rolltables |
 | `macros_traaash_1e.db` | "Roll: The Company" macro |
-| `items_pet_skills_1e.db` | 17 pet skills (7 Trained / 5 Expert / 5 Master) with prerequisite tree |
+| `items_pet_skills_1e.db` | 17 pet skills (7 Trained / 5 Expert / 5 Master) with prerequisite tree — stored as `type: "pet_skill"` (not `"skill"`) so MCG's skill picker, which scans all Item compendiums for `d.type === "skill"`, does not include them |
 
 ## Rolltable IDs
 
@@ -85,6 +85,8 @@ Re-rolls 1d10 until the result is not 10, then looks up that result in the main 
 ## Pet Skill Tree
 
 Pack: `items_pet_skills_1e.db`. All item IDs are in `Compendium.fvtt_mosh_1e_traaash.items_pet_skills_1e.Item.<id>`.
+
+**Document type is `"pet_skill"`, not `"skill"`.** MCG's `mcgChooseSkillsA` macro scans all Item compendiums for documents where `d.type === "skill"` to build its skill pool. Using `"pet_skill"` keeps pet skills out of that pool. Do not change this back to `"skill"` — traaash runtime uses the hardcoded `PET_SKILLS` array exclusively and never queries these compendium documents.
 
 ### Skill IDs
 

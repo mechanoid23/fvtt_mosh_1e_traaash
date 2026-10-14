@@ -249,6 +249,142 @@ function _buildPetSkillsHtml(owned) {
   }).join("");
 }
 
+// Known pet item names from fvtt_mosh_1e_psg. Add custom pet names here.
+const PET_ITEM_NAMES = new Set(["Cat", "Dog", "Rat", "Pet (Organic)", "Pet (Synthetic)"]);
+
+const SYNTHETIC_KEYWORDS = /\bsynthetic\b/i;
+
+async function _showPetSkillPicker(item) {
+  const isSynthetic = SYNTHETIC_KEYWORDS.test(item.name);
+  const trainedSkills = PET_SKILLS.filter(s => s.rank === "trained");
+  const expertSkills  = PET_SKILLS.filter(s => s.rank === "expert");
+
+  function _row(s, note = "") {
+    const noteHtml = note ? `<span style="color:#999;font-size:0.82em"> ${note}</span>` : "";
+    return `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:2px 0">
+      <input type="checkbox" class="pet-pick" data-id="${s.id}" style="margin:0;cursor:inherit">
+      <span style="font-size:0.88em">${s.name}${noteHtml}</span>
+    </label>`;
+  }
+
+  const trainedBlock = `<div id="petTrainedWrap">
+    <div style="font-size:0.72em;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:4px">Trained <span style="color:#bbb">+10%</span></div>
+    <div id="petTrainedPool">${trainedSkills.map(s => _row(s)).join("")}</div>
+  </div>`;
+
+  const expertBlock = `<div id="petExpertWrap" style="display:none">
+    <div style="font-size:0.72em;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:4px">Expert <span style="color:#bbb">+15%</span></div>
+    <div id="petExpertPool">${expertSkills.map(s => {
+      const pre = PET_SKILLS.find(p => s.prereqs.includes(p.id));
+      return _row(s, pre ? `(grants: ${pre.name})` : "");
+    }).join("")}</div>
+  </div>`;
+
+  let content;
+  if (!isSynthetic) {
+    content = `<form style="padding:4px 0">
+      <p style="margin:0 0 10px;font-size:0.88em">Organic pet: pick <strong>1 Trained</strong> skill.</p>
+      ${trainedBlock}
+      <p style="margin:8px 0 0;font-size:0.82em;color:#888">Remaining: <span id="petPickRem">1</span></p>
+    </form>`;
+  } else {
+    content = `<form style="padding:4px 0">
+      <p style="margin:0 0 8px;font-size:0.88em">Synthetic pet: pick <strong>2 Trained</strong> or <strong>1 Expert</strong>.</p>
+      <div style="margin-bottom:10px">
+        <label style="margin-right:16px;cursor:pointer"><input type="radio" name="petMode" value="trained" checked> 2 Trained</label>
+        <label style="cursor:pointer"><input type="radio" name="petMode" value="expert"> 1 Expert</label>
+      </div>
+      ${trainedBlock}
+      ${expertBlock}
+      <p style="margin:8px 0 0;font-size:0.82em;color:#888">Remaining: <span id="petPickRem">2</span></p>
+    </form>`;
+  }
+
+  return new Promise(resolve => {
+    new Dialog({
+      title: `Pet Skills — ${item.name}`,
+      content,
+      buttons: {
+        ok: {
+          label: "Confirm",
+          callback: html => {
+            const $h = $(html);
+            const chosen = [];
+            $h.find(".pet-pick:checked").each((_, el) => chosen.push(el.dataset.id));
+
+            if (isSynthetic && $h.find("[name=petMode]:checked").val() === "expert") {
+              for (const id of [...chosen]) {
+                const skill = PET_SKILLS.find(s => s.id === id);
+                for (const pid of skill?.prereqs ?? []) {
+                  if (!chosen.includes(pid)) chosen.push(pid);
+                }
+              }
+            }
+            resolve(chosen);
+          },
+        },
+        cancel: { label: "Cancel", callback: () => resolve(null) },
+      },
+      default: "ok",
+      close: () => resolve(null),
+      render: html => {
+        const $h = $(html);
+        const $confirm = $h.find(".dialog-button.ok");
+        $confirm.prop("disabled", true);
+        let limit = isSynthetic ? 2 : 1;
+
+        function refresh($pool) {
+          const n = $pool.find(".pet-pick:checked").length;
+          $h.find("#petPickRem").text(Math.max(0, limit - n));
+          $pool.find(".pet-pick:not(:checked)").prop("disabled", n >= limit);
+          $pool.find(".pet-pick:checked").prop("disabled", false);
+          $confirm.prop("disabled", n !== limit);
+        }
+
+        if (isSynthetic) {
+          const $trW = $h.find("#petTrainedWrap");
+          const $exW = $h.find("#petExpertWrap");
+          const $tr  = $h.find("#petTrainedPool");
+          const $ex  = $h.find("#petExpertPool");
+
+          $h.find("[name=petMode]").on("change", function() {
+            const expert = this.value === "expert";
+            limit = expert ? 1 : 2;
+            $trW.toggle(!expert);
+            $exW.toggle(expert);
+            $tr.find(".pet-pick").prop({ checked: false, disabled: false });
+            $ex.find(".pet-pick").prop({ checked: false, disabled: false });
+            $h.find("#petPickRem").text(limit);
+            $confirm.prop("disabled", true);
+          });
+
+          $tr.on("change", ".pet-pick", () => refresh($tr));
+          $ex.on("change", ".pet-pick", () => refresh($ex));
+          refresh($tr);
+        } else {
+          $h.on("change", ".pet-pick", () => refresh($h));
+          refresh($h);
+        }
+      },
+    }, { width: 380 }).render(true);
+  });
+}
+
+// Remove pet skill entries from any dialog that includes them (e.g. MCG skill picker).
+// Pet skills are for pets only and must not appear in character skill selection.
+Hooks.on("renderDialog", (_app, html, _data) => {
+  const $html = html.jquery ? html : $(html);
+  const petIds = new Set(PET_SKILLS.map(s => s.id));
+  const PET_PACK = "items_pet_skills_1e";
+
+  $html.find("input[type='checkbox']").each((_i, el) => {
+    const candidates = [el.dataset.uuid, el.dataset.id, el.dataset.skillId].filter(Boolean);
+    if (candidates.some(a => a.includes(PET_PACK) || petIds.has(a) || petIds.has(a.split(".").pop()))) {
+      $(el).closest("label").remove();
+    }
+  });
+});
+
 Hooks.on("renderItemSheet", (app, html, _data) => {
   if (!game.settings.get(MODULE_ID, "enablePetSkills")) return;
   const item = app.document ?? app.object;
@@ -261,11 +397,15 @@ Hooks.on("renderItemSheet", (app, html, _data) => {
 
   if (!enabled) {
     if (!item.isOwner) return;
+    if (!PET_ITEM_NAMES.has(item.name)) return;
     const $link = $(`<div style="text-align:right;padding:4px 10px 6px">
-      <a class="traaash-enable-pet-skills" style="font-size:0.8em;color:#aaa">Track pet skills →</a>
+      <a class="traaash-enable-pet-skills" style="font-size:0.8em;color:#aaa">Set up pet skills →</a>
     </div>`);
     $link.find(".traaash-enable-pet-skills").on("click", async () => {
+      const chosen = await _showPetSkillPicker(item);
+      if (!chosen) return;
       await item.setFlag(MODULE_ID, "petSkillsEnabled", true);
+      await item.setFlag(MODULE_ID, "petSkills", chosen);
     });
     $body.after($link);
     return;
