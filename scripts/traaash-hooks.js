@@ -122,7 +122,7 @@ Hooks.once("init", () => {
 
   game.settings.register(MODULE_ID, "enablePetSkills", {
     name: "Pet Skill Tree",
-    hint: "Enables the Pet Skill Tree compendium pack (17 skills across Trained / Expert / Master tiers with a prerequisite tree). Requires a world reload to take effect.",
+    hint: "Shows a skill tree tracker inside any gear item's sheet that has been registered as a pet. Skill progress is stored as flags on the item.",
     scope: "world",
     config: true,
     type: Boolean,
@@ -188,6 +188,107 @@ Hooks.on("createItem", (item, _options, userId) => {
     _promptCompany(actor);
   }, 5000);
   _pendingCompany.set(actor.id, timer);
+});
+
+// ---- Pet Skills ----
+
+const PET_SKILLS = [
+  { id: "Tr1CalmUndrFire0", name: "Calm Under Fire",    rank: "trained", prereqs: [] },
+  { id: "Tr2ToothAndClaw0", name: "Tooth & Claw",       rank: "trained", prereqs: [] },
+  { id: "Tr3TrackingPet00", name: "Tracking",           rank: "trained", prereqs: [] },
+  { id: "Tr4ForagingPet00", name: "Foraging",           rank: "trained", prereqs: [] },
+  { id: "Tr5RimwisePet000", name: "Rimwise",            rank: "trained", prereqs: [] },
+  { id: "Tr6SafetyPet0000", name: "Safety",             rank: "trained", prereqs: [] },
+  { id: "Tr7AthleticsPet0", name: "Athletics",          rank: "trained", prereqs: [] },
+  { id: "Ex1CompanionTrng", name: "Companion Training", rank: "expert",  prereqs: ["Tr1CalmUndrFire0"] },
+  { id: "Ex2MilitaryTrng0", name: "Military Training",  rank: "expert",  prereqs: ["Tr2ToothAndClaw0"] },
+  { id: "Ex3HuntingPet000", name: "Hunting",            rank: "expert",  prereqs: ["Tr3TrackingPet00"] },
+  { id: "Ex4DetectPet0000", name: "Detect",             rank: "expert",  prereqs: ["Tr3TrackingPet00"] },
+  { id: "Ex5ZeroGTraining", name: "Zero-G Training",    rank: "expert",  prereqs: ["Tr7AthleticsPet0"] },
+  { id: "Ms1PanicTraining", name: "Panic Training",     rank: "master",  prereqs: ["Ex1CompanionTrng"] },
+  { id: "Ms2XenoTracking0", name: "Xeno Tracking",      rank: "master",  prereqs: ["Ex2MilitaryTrng0"] },
+  { id: "Ms3SearchRescue0", name: "Search & Rescue",    rank: "master",  prereqs: ["Ex3HuntingPet000"] },
+  { id: "Ms4DetectSubst00", name: "Detect Substance",   rank: "master",  prereqs: ["Ex4DetectPet0000"] },
+  { id: "Ms5DetectDisease", name: "Detect Disease",     rank: "master",  prereqs: ["Ex4DetectPet0000"] },
+];
+
+function _removePetSkillDependents(skillId, current) {
+  PET_SKILLS.forEach(s => {
+    if (s.prereqs.includes(skillId) && current.has(s.id)) {
+      current.delete(s.id);
+      _removePetSkillDependents(s.id, current);
+    }
+  });
+}
+
+function _buildPetSkillsHtml(owned) {
+  const tiers = [
+    { key: "trained", label: "Trained", bonus: "+10%" },
+    { key: "expert",  label: "Expert",  bonus: "+15%" },
+    { key: "master",  label: "Master",  bonus: "+20%" },
+  ];
+  return tiers.map(({ key, label, bonus }) => {
+    const skills = PET_SKILLS.filter(s => s.rank === key);
+    const cells = skills.map(s => {
+      const hasPrereqs = s.prereqs.every(p => owned.has(p));
+      const isOwned = owned.has(s.id);
+      const disabled = !hasPrereqs && !isOwned ? "disabled" : "";
+      const checked = isOwned ? "checked" : "";
+      const dim = disabled ? "opacity:0.4;" : "";
+      const prereqNames = s.prereqs.map(p => PET_SKILLS.find(x => x.id === p)?.name ?? p).join(", ");
+      const title = prereqNames ? `title="Requires: ${prereqNames}"` : "";
+      return `<label style="display:flex;align-items:center;gap:4px;${dim}cursor:${disabled ? "default" : "pointer"}" ${title}>
+        <input type="checkbox" class="traaash-pet-skill" data-id="${s.id}" ${checked} ${disabled} style="margin:0;cursor:inherit">
+        <span style="font-size:0.82em;white-space:nowrap">${s.name}</span>
+      </label>`;
+    }).join("");
+    return `<div style="margin-bottom:8px">
+      <div style="font-size:0.72em;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:3px">${label} <span style="color:#bbb">${bonus}</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px 14px">${cells}</div>
+    </div>`;
+  }).join("");
+}
+
+Hooks.on("renderItemSheet", (app, html, _data) => {
+  if (!game.settings.get(MODULE_ID, "enablePetSkills")) return;
+  const item = app.document ?? app.object;
+  if (!item || item.type !== "item") return;
+
+  const $html = html.jquery ? html : $(html);
+  const enabled = !!item.getFlag(MODULE_ID, "petSkillsEnabled");
+  const owned = new Set(item.getFlag(MODULE_ID, "petSkills") ?? []);
+  const $body = $html.find("section.sheet-body");
+
+  if (!enabled) {
+    if (!item.isOwner) return;
+    const $link = $(`<div style="text-align:right;padding:4px 10px 6px">
+      <a class="traaash-enable-pet-skills" style="font-size:0.8em;color:#aaa">Track pet skills →</a>
+    </div>`);
+    $link.find(".traaash-enable-pet-skills").on("click", async () => {
+      await item.setFlag(MODULE_ID, "petSkillsEnabled", true);
+    });
+    $body.after($link);
+    return;
+  }
+
+  const $section = $(`<div class="traaash-pet-skills-section" style="border-top:1px solid rgba(0,0,0,0.12);padding:10px 12px 6px;margin-top:4px">
+    <div style="font-size:0.78em;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#555;margin-bottom:8px">Pet Skills</div>
+    ${_buildPetSkillsHtml(owned)}
+  </div>`);
+
+  $section.find(".traaash-pet-skill").on("change", async (ev) => {
+    const id = ev.currentTarget.dataset.id;
+    const current = new Set(item.getFlag(MODULE_ID, "petSkills") ?? []);
+    if (ev.currentTarget.checked) {
+      current.add(id);
+    } else {
+      current.delete(id);
+      _removePetSkillDependents(id, current);
+    }
+    await item.setFlag(MODULE_ID, "petSkills", [...current]);
+  });
+
+  $body.after($section);
 });
 
 Hooks.on("renderActorSheet", (app, html, _data) => {

@@ -38,7 +38,7 @@ Settings are registered in `init` (required by Foundry before `ready`). Each fea
 | Setting key | Default | Status | Effect when `false` |
 |---|---|---|---|
 | `enableCompany` | `true` | Fully wired | Suppresses `traaash.skillsChosen` listener, `createItem` watcher, and `renderActorSheet` Bio tab injection |
-| `enablePetSkills` | `true` | Advisory only | No runtime effect — Foundry does not support dynamically hiding compendium packs declared in `module.json`. Reserved for future sheet UI. |
+| `enablePetSkills` | `true` | Fully wired | Suppresses the `renderItemSheet` pet skill tree injection. Compendium pack is always present (Foundry cannot hide declared packs at runtime), but the in-sheet tracker is hidden when off. |
 
 New feature settings should be added here following the same pattern. If a future feature has a runtime hook, guard it with `game.settings.get(MODULE_ID, "<key>")` at the top of that hook handler.
 
@@ -108,9 +108,23 @@ Pack: `items_pet_skills_1e.db`. All item IDs are in `Compendium.fvtt_mosh_1e_tra
 | `Ms4DetectSubst00` | Detect Substance | Master | `Ex4DetectPet0000` |
 | `Ms5DetectDisease` | Detect Disease | Master | `Ex4DetectPet0000` |
 
+### How pet skill tracking works
+
+Pet items in the mosh system are `type: "item"` gear documents (Cat, Dog, "Pet (Organic)", etc.). Foundry does not allow embedded items inside item documents, so skills cannot be attached natively.
+
+traaash injects a skill tree tracker directly into the item's sheet via `renderItemSheet`:
+
+1. For any owned `type: "item"` document, a subtle "Track pet skills →" link appears at the bottom of the item sheet.
+2. Clicking it sets `item.flags.fvtt_mosh_1e_traaash.petSkillsEnabled = true` and re-renders the sheet.
+3. The full 17-skill tree then appears below the description, with checkboxes gated by prerequisites.
+4. Selections are stored as `item.flags.fvtt_mosh_1e_traaash.petSkills = [<skillId>, ...]`.
+5. Unchecking a skill cascades: any Expert/Master skills that depend on it are also cleared.
+
+The `enablePetSkills` setting gates the entire injection (both the enable link and the tree). When off, the item sheet is unchanged.
+
 ### Prerequisite note
 
-`prerequisite_ids` encodes the primary tree path (AND logic in the mosh system). Alternative paths shown in the ASCII tree and item descriptions are advisory — a GM may grant Expert/Master skills from any valid contributing Trained skill.
+`prerequisite_ids` on the compendium skill items encodes the primary tree path (AND logic in the mosh system). The in-sheet tracker enforces the same prerequisite gates. Alternative paths shown in the ASCII tree and item descriptions are advisory.
 
 ## Source
 

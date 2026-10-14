@@ -71,6 +71,15 @@ Athletics ──────┘
 
 Each skill carries its prerequisite(s) in `prerequisite_ids` following the primary path shown above. Some expert skills are reachable via multiple trained skills — see each item's description.
 
+### How to use
+
+1. Open a pet item's sheet (e.g., Cat, Dog, or any gear item representing a pet).
+2. Click **Track pet skills →** at the bottom of the sheet.
+3. The skill tree appears with checkboxes. Prerequisites must be met before an Expert or Master skill can be selected.
+4. Unchecking a skill automatically clears any dependent skills above it.
+
+Progress is stored on the item itself — it travels with the item if moved between actors.
+
 ## Admin settings
 
 In Foundry: **Game Settings → Configure Settings → Module Settings → Mothership 1e — Traaa.sh Extras**
@@ -78,7 +87,7 @@ In Foundry: **Game Settings → Configure Settings → Module Settings → Mothe
 | Setting | Default | Wired | Description |
 |---|---|---|---|
 | The Company — Character Creation | On | ✓ fully | Suppresses the auto-prompt and Bio tab section when off |
-| Pet Skill Tree | On | advisory | The compendium pack is always present; this toggle is a placeholder for future sheet UI features |
+| Pet Skill Tree | On | ✓ fully | Suppresses the in-sheet skill tracker; compendium pack is always present |
 
 ## Compatibility
 
