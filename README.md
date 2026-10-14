@@ -47,6 +47,14 @@ Each player rolls 1d10 at character creation to find out why they're in the corp
 - **Roll: The Company macro**: select a token and run the macro to roll for any character at any time
 - **Compendium tables**: The Company and Jubilee tables available for manual use in Foundry
 
+## Admin settings
+
+In Foundry: **Game Settings → Configure Settings → Module Settings → Mothership 1e — Traaa.sh Extras**
+
+| Setting | Default | Description |
+|---|---|---|
+| The Company — Character Creation | On | Auto-prompt after Choose Skills; displays result in Bio tab |
+
 ## Compatibility
 
 Foundry VTT v11–v14. Uses `DialogV2` on v12+ with automatic fallback to the legacy `Dialog` API on v11.

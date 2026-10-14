@@ -28,12 +28,27 @@ NeDB compendium packs — one JSON document per line in `.db` files under `packs
 
 ## Architecture
 
-`scripts/traaash-hooks.js` contains all logic:
+`scripts/traaash-hooks.js` contains all logic, organised into three sections: Settings, Ready, and one section per feature.
+
+### Settings (`Hooks.once("init")`)
+
+Settings are registered in `init` (required by Foundry before `ready`). Each feature has one `Boolean` setting with `scope: "world"` and `config: true`, so they appear in **Game Settings → Configure Settings → Module Settings** and are changeable only by GMs.
+
+| Setting key | Default | Controls |
+|---|---|---|
+| `enableCompany` | `true` | The Company auto-prompt and Bio tab display |
+
+New feature settings should be added here following the same pattern.
+
+### Core functions
 
 - `rollCompanyMotivation(actor)` — core function; exposed as `game.traaash.rollCompanyMotivation` after `ready`
 - `confirmCompanyRoll(actorName)` — version-compatible confirm dialog: uses `DialogV2` on Foundry v12+, falls back to legacy `Dialog` on v11
+
+### The Company feature (guarded by `enableCompany`)
+
 - `traaash.skillsChosen` hook listener — fires after the Choose Skills macro completes (both the normal path and the early-return path for classes with no skill choices); prompts to roll The Company if not yet rolled. The hook is emitted by `mcgChooseSkillsA` via `Hooks.callAll("traaash.skillsChosen", myActor)`.
-- `renderActorSheet` hook — injects The Company block at the top of the Bio tab (`.tab[data-tab="description"]`) on all character sheets
+- `renderActorSheet` hook — injects The Company block at the top of the Bio tab (`.tab[data-tab="description"]`) on all character sheets. Skipped entirely when `enableCompany` is off.
 
 ### The Company block (Bio tab)
 

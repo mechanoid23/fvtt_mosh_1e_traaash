@@ -108,13 +108,31 @@ async function confirmCompanyRoll(actorName) {
   });
 }
 
+// ---- Settings ----
+
+Hooks.once("init", () => {
+  game.settings.register(MODULE_ID, "enableCompany", {
+    name: "The Company — Character Creation",
+    hint: "After Choose Skills, prompt to roll why the character is in the corporation's pocket. Also displays the result in the character sheet Bio tab.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+});
+
+// ---- Ready ----
+
 Hooks.once("ready", () => {
   game.traaash = { rollCompanyMotivation };
   console.log("fvtt_mosh_1e_traaash | ready");
 });
 
+// ---- The Company ----
+
 // Fire after the Choose Skills macro completes — sequenced after skills are confirmed.
 Hooks.on("traaash.skillsChosen", async (actor) => {
+  if (!game.settings.get(MODULE_ID, "enableCompany")) return;
   if (actor.getFlag(MODULE_ID, "company_roll") != null) return;
   console.log(`fvtt_mosh_1e_traaash | skills chosen for ${actor.name}, prompting The Company roll`);
   try {
@@ -126,6 +144,8 @@ Hooks.on("traaash.skillsChosen", async (actor) => {
 });
 
 Hooks.on("renderActorSheet", (app, html, _data) => {
+  if (!game.settings.get(MODULE_ID, "enableCompany")) return;
+
   const actor = app.actor;
   if (!actor || actor.type !== "character") return;
 
