@@ -58,5 +58,5 @@
   "url": "https://github.com/mechanoid23/fvtt_mosh_1e_traaash",
   "manifest": "https://raw.githubusercontent.com/mechanoid23/fvtt_mosh_1e_traaash/main/module.json",
   "scripts": ["scripts/traaash-hooks.js"],
-  "download": "https://github.com/mechanoid23/fvtt_mosh_1e_traaash/releases/download/v0.2.2/fvtt_mosh_1e_traaash.zip"
+  "download": "https://github.com/mechanoid23/fvtt_mosh_1e_traaash/releases/download/v0.2.3/fvtt_mosh_1e_traaash.zip"
 }
