@@ -335,74 +335,102 @@ function _buildPickerContent(selected) {
       ${rows}
     </div>`;
   }).join("");
-  return `<div style="max-height:500px;overflow-y:auto;padding:2px 0">${sections}</div>`;
+  return `<div>
+    <div style="max-height:500px;overflow-y:auto;padding:2px 0">${sections}</div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;padding:8px 4px 2px;border-top:1px solid rgba(0,0,0,0.15);margin-top:4px">
+      <button type="button" data-action="cancel" style="flex:0 0 auto;padding:2px 16px">Cancel</button>
+      <button type="button" data-action="confirm" style="flex:0 0 auto;padding:2px 16px">Confirm</button>
+    </div>
+  </div>`;
+}
+
+class PetSkillPickerApp extends Application {
+  static get defaultOptions() {
+    return foundry.utils.mergeObject(super.defaultOptions, {
+      id: "traaash-pet-skill-picker",
+      classes: ["dialog"],
+      width: 540,
+      height: "auto",
+      resizable: false,
+    });
+  }
+
+  constructor(item, resolve, options = {}) {
+    super(options);
+    this._item = item;
+    this._resolve = resolve;
+    this._resolved = false;
+    this._selected = new Set();
+  }
+
+  get title() { return `Pet Skills — ${this._item.name}`; }
+
+  async _renderInner() {
+    return $(_buildPickerContent(this._selected));
+  }
+
+  activateListeners(html) {
+    super.activateListeners(html);
+    this._refreshLocks(html);
+
+    html.on("change", ".pet-pick", ev => {
+      const id = ev.currentTarget.dataset.id;
+      if (ev.currentTarget.checked) {
+        this._selected.add(id);
+        const autoCheck = sid => {
+          for (const pid of PET_SKILLS.find(x => x.id === sid)?.prereqs ?? []) {
+            if (!this._selected.has(pid)) {
+              this._selected.add(pid);
+              html.find(`.pet-pick[data-id="${pid}"]`).prop("checked", true);
+              autoCheck(pid);
+            }
+          }
+        };
+        autoCheck(id);
+      } else {
+        this._selected.delete(id);
+        const autoClear = sid => {
+          PET_SKILLS.forEach(s => {
+            if (!s.prereqs.includes(sid) || !this._selected.has(s.id)) return;
+            if (s.prereqs.some(p => p !== sid && this._selected.has(p))) return;
+            this._selected.delete(s.id);
+            html.find(`.pet-pick[data-id="${s.id}"]`).prop("checked", false);
+            autoClear(s.id);
+          });
+        };
+        autoClear(id);
+      }
+      this._refreshLocks(html);
+    });
+
+    html.find("[data-action='confirm']").on("click", () => {
+      if (!this._resolved) { this._resolved = true; this._resolve([...this._selected]); }
+      this.close();
+    });
+
+    html.find("[data-action='cancel']").on("click", () => {
+      if (!this._resolved) { this._resolved = true; this._resolve(null); }
+      this.close();
+    });
+  }
+
+  _refreshLocks(html) {
+    PET_SKILLS.forEach(s => {
+      const locked = s.prereqs.length > 0 && !s.prereqs.some(p => this._selected.has(p));
+      const $row = html.find(`.traaash-pick-row[data-id="${s.id}"]`);
+      $row.find(".pet-pick").prop("disabled", locked);
+      $row.css({ opacity: locked ? "0.4" : "1", cursor: locked ? "default" : "pointer" });
+    });
+  }
+
+  async close(options = {}) {
+    if (!this._resolved) { this._resolved = true; this._resolve(null); }
+    return super.close(options);
+  }
 }
 
 async function _showPetSkillPicker(item) {
-  return new Promise(resolve => {
-    new Dialog({
-      title: `Pet Skills — ${item.name}`,
-      content: _buildPickerContent(new Set()),
-      buttons: {
-        ok: {
-          label: "Confirm",
-          callback: html => {
-            const chosen = [];
-            $(html).find(".pet-pick:checked").each((_, el) => chosen.push(el.dataset.id));
-            resolve(chosen);
-          },
-        },
-        cancel: { label: "Cancel", callback: () => resolve(null) },
-      },
-      default: "ok",
-      close: () => resolve(null),
-      render: html => {
-        const $h = $(html);
-
-        function refreshLocks() {
-          const selected = new Set();
-          $h.find(".pet-pick:checked").each((_, el) => selected.add(el.dataset.id));
-          $h.find(".traaash-pick-row").each((_, row) => {
-            const $row = $(row);
-            const skill = PET_SKILLS.find(s => s.id === row.dataset.id);
-            if (!skill) return;
-            const locked = skill.prereqs.length > 0 && !skill.prereqs.some(p => selected.has(p));
-            $row.find(".pet-pick").prop("disabled", locked);
-            $row.css({ opacity: locked ? "0.4" : "1", cursor: locked ? "default" : "pointer" });
-          });
-        }
-
-        $h.on("change", ".pet-pick", function() {
-          const id = this.dataset.id;
-          if (this.checked) {
-            const autoCheck = (sid) => {
-              const s = PET_SKILLS.find(x => x.id === sid);
-              for (const pid of s?.prereqs ?? []) {
-                const $p = $h.find(`.pet-pick[data-id="${pid}"]`);
-                if (!$p.prop("checked")) { $p.prop("checked", true); autoCheck(pid); }
-              }
-            };
-            autoCheck(id);
-          } else {
-            const autoClear = (sid) => {
-              PET_SKILLS.forEach(s => {
-                if (!s.prereqs.includes(sid)) return;
-                const $d = $h.find(`.pet-pick[data-id="${s.id}"]`);
-                if (!$d.prop("checked")) return;
-                // OR logic: only clear if no other prereq is still checked
-                const otherChecked = s.prereqs.some(p => p !== sid && $h.find(`.pet-pick[data-id="${p}"]`).prop("checked"));
-                if (!otherChecked) { $d.prop("checked", false); autoClear(s.id); }
-              });
-            };
-            autoClear(id);
-          }
-          refreshLocks();
-        });
-
-        refreshLocks();
-      },
-    }, { width: 520 }).render(true);
-  });
+  return new Promise(resolve => new PetSkillPickerApp(item, resolve).render(true));
 }
 
 // Remove pet skill entries from any dialog (e.g. MCG skill picker).
