@@ -303,43 +303,66 @@ const _PET_SKILL_DESCS = {
   "Ms5DetectDisease": "Trained to detect and alert owner that someone is infected with a specific disease. Does not require a sample. Note the disease it is trained to detect.",
 };
 
-function _buildPickerContent(selected) {
-  const tiers = [
-    { key: "trained", label: "Trained Pet Skills", bonus: "+10%" },
-    { key: "expert",  label: "Expert Pet Skills",  bonus: "+15%" },
-    { key: "master",  label: "Master Pet Skills",  bonus: "+20%" },
-  ];
-  const sections = tiers.map(({ key, label, bonus }) => {
-    const rows = PET_SKILLS.filter(s => s.rank === key).map(s => {
-      const prereqNames = s.prereqs.map(p => PET_SKILLS.find(x => x.id === p)?.name ?? p).join(", ");
-      const locked = s.prereqs.length > 0 && !s.prereqs.some(p => selected.has(p));
-      const icon = _PET_SKILL_ICONS[s.id];
-      const iconHtml = icon
-        ? `<img src="${icon}" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;border:none;box-shadow:none">`
-        : `<span style="width:20px;height:20px;flex-shrink:0;display:inline-block"></span>`;
-      const reqLabel = s.prereqs.length > 1 ? "Requires any of" : "Requires";
-      const prereqNote = prereqNames
-        ? `<span style="font-size:0.75em;color:#aaa;margin-left:4px;font-style:italic">${reqLabel}: ${prereqNames}</span>` : "";
-      const desc = _PET_SKILL_DESCS[s.id] ?? "";
-      return `<label class="traaash-pick-row" data-id="${s.id}" style="display:flex;align-items:flex-start;gap:8px;padding:5px 8px;border-radius:3px;opacity:${locked ? "0.4" : "1"};cursor:${locked ? "default" : "pointer"}">
-        <input type="checkbox" class="pet-pick" data-id="${s.id}" ${selected.has(s.id) ? "checked" : ""} ${locked ? "disabled" : ""} style="margin-top:2px;flex-shrink:0;cursor:inherit">
-        ${iconHtml}
-        <div style="line-height:1">
-          <span style="font-size:0.87em;font-weight:600">${s.name}</span>${prereqNote}
-          <div style="font-size:0.77em;color:#888;line-height:1.4;margin-top:2px">${desc}</div>
-        </div>
-      </label>`;
-    }).join("");
-    return `<div style="margin-bottom:10px">
-      <div style="font-size:0.68em;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#666;padding:0 8px 4px;border-bottom:1px solid rgba(0,0,0,0.1);margin-bottom:2px">${label} <span style="color:#bbb;font-weight:400">${bonus}</span></div>
-      ${rows}
+const SYNTHETIC_RE = /\bsynthetic\b/i;
+
+function _buildPickerContent(isSynthetic, mode, selected, limit) {
+  const remaining = limit - selected.size;
+
+  // Header: instruction text + mode toggle (synthetic) + remaining counter
+  const remainingSpan = `<span style="color:#888;font-size:0.82em">Remaining: <strong class="traaash-remaining">${remaining}</strong></span>`;
+  let headerHtml;
+  if (!isSynthetic) {
+    headerHtml = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding:0 8px">
+      <span style="font-size:0.88em">Organic pet — select <strong>1 Trained</strong> skill.</span>
+      ${remainingSpan}
     </div>`;
+  } else {
+    headerHtml = `<div style="margin-bottom:8px;padding:0 8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:0.88em">Synthetic pet — select skills or a starting Expert.</span>
+        ${remainingSpan}
+      </div>
+      <div style="display:flex;gap:20px;font-size:0.88em">
+        <label style="cursor:pointer"><input type="radio" name="petMode" value="trained" ${mode === "trained" ? "checked" : ""}> 2 Trained</label>
+        <label style="cursor:pointer"><input type="radio" name="petMode" value="expert" ${mode === "expert" ? "checked" : ""}> 1 Expert <span style="font-size:0.8em;color:#aaa">(prerequisites waived)</span></label>
+      </div>
+    </div>`;
+  }
+
+  // Skill rows — only the relevant tier; expert mode shows all expert skills unlocked
+  const tier = mode === "expert" ? "expert" : "trained";
+  const tierLabel = tier === "expert" ? "Expert Pet Skills" : "Trained Pet Skills";
+  const tierBonus = tier === "expert" ? "+15%" : "+10%";
+  const rows = PET_SKILLS.filter(s => s.rank === tier).map(s => {
+    const isSelected = selected.has(s.id);
+    const atLimit = !isSelected && remaining <= 0;
+    const icon = _PET_SKILL_ICONS[s.id];
+    const iconHtml = icon
+      ? `<img src="${icon}" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;border:none;box-shadow:none">`
+      : `<span style="width:20px;height:20px;flex-shrink:0;display:inline-block"></span>`;
+    const desc = _PET_SKILL_DESCS[s.id] ?? "";
+    return `<label class="traaash-pick-row" data-id="${s.id}" style="display:flex;align-items:flex-start;gap:8px;padding:5px 8px;border-radius:3px;opacity:${atLimit ? "0.4" : "1"};cursor:${atLimit ? "default" : "pointer"}">
+      <input type="checkbox" class="pet-pick" data-id="${s.id}" ${isSelected ? "checked" : ""} ${atLimit ? "disabled" : ""} style="margin-top:2px;flex-shrink:0;cursor:inherit">
+      ${iconHtml}
+      <div style="line-height:1">
+        <span style="font-size:0.87em;font-weight:600">${s.name}</span>
+        <div style="font-size:0.77em;color:#888;line-height:1.4;margin-top:2px">${desc}</div>
+      </div>
+    </label>`;
   }).join("");
+
+  const skillsHtml = `<div style="margin-bottom:10px">
+    <div style="font-size:0.68em;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#666;padding:0 8px 4px;border-bottom:1px solid rgba(0,0,0,0.1);margin-bottom:2px">${tierLabel} <span style="color:#bbb;font-weight:400">${tierBonus}</span></div>
+    ${rows}
+  </div>`;
+
+  const confirmDisabled = remaining !== 0 ? "disabled" : "";
   return `<div>
-    <div style="max-height:500px;overflow-y:auto;padding:2px 0">${sections}</div>
+    ${headerHtml}
+    <div style="max-height:420px;overflow-y:auto;padding:2px 0">${skillsHtml}</div>
     <div style="display:flex;justify-content:flex-end;gap:8px;padding:8px 4px 2px;border-top:1px solid rgba(0,0,0,0.15);margin-top:4px">
       <button type="button" data-action="cancel" style="flex:0 0 auto;padding:2px 16px">Cancel</button>
-      <button type="button" data-action="confirm" style="flex:0 0 auto;padding:2px 16px">Confirm</button>
+      <button type="button" data-action="confirm" ${confirmDisabled} style="flex:0 0 auto;padding:2px 16px">Confirm</button>
     </div>
   </div>`;
 }
@@ -349,7 +372,7 @@ class PetSkillPickerApp extends Application {
     return foundry.utils.mergeObject(super.defaultOptions, {
       id: "traaash-pet-skill-picker",
       classes: ["dialog"],
-      width: 540,
+      width: 480,
       height: "auto",
       resizable: false,
     });
@@ -361,49 +384,44 @@ class PetSkillPickerApp extends Application {
     this._resolve = resolve;
     this._resolved = false;
     this._selected = new Set();
+    this._isSynthetic = SYNTHETIC_RE.test(item.name);
+    this._mode = "trained"; // "trained" | "expert"
+  }
+
+  get _limit() {
+    if (!this._isSynthetic) return 1;
+    return this._mode === "expert" ? 1 : 2;
   }
 
   get title() { return `Pet Skills — ${this._item.name}`; }
 
   async _renderInner() {
-    return $(_buildPickerContent(this._selected));
+    return $(_buildPickerContent(this._isSynthetic, this._mode, this._selected, this._limit));
   }
 
   activateListeners(html) {
     super.activateListeners(html);
-    this._refreshLocks(html);
+
+    // Mode switch (synthetic only) — clear selection and re-render
+    html.on("change", "[name='petMode']", ev => {
+      this._mode = ev.currentTarget.value;
+      this._selected.clear();
+      this.render(true);
+    });
 
     html.on("change", ".pet-pick", ev => {
       const id = ev.currentTarget.dataset.id;
       if (ev.currentTarget.checked) {
+        if (this._selected.size >= this._limit) { ev.currentTarget.checked = false; return; }
         this._selected.add(id);
-        const autoCheck = sid => {
-          for (const pid of PET_SKILLS.find(x => x.id === sid)?.prereqs ?? []) {
-            if (!this._selected.has(pid)) {
-              this._selected.add(pid);
-              html.find(`.pet-pick[data-id="${pid}"]`).prop("checked", true);
-              autoCheck(pid);
-            }
-          }
-        };
-        autoCheck(id);
       } else {
         this._selected.delete(id);
-        const autoClear = sid => {
-          PET_SKILLS.forEach(s => {
-            if (!s.prereqs.includes(sid) || !this._selected.has(s.id)) return;
-            if (s.prereqs.some(p => p !== sid && this._selected.has(p))) return;
-            this._selected.delete(s.id);
-            html.find(`.pet-pick[data-id="${s.id}"]`).prop("checked", false);
-            autoClear(s.id);
-          });
-        };
-        autoClear(id);
       }
-      this._refreshLocks(html);
+      this._refreshState(html);
     });
 
     html.find("[data-action='confirm']").on("click", () => {
+      if (this._selected.size !== this._limit) return;
       if (!this._resolved) { this._resolved = true; this._resolve([...this._selected]); }
       this.close();
     });
@@ -414,13 +432,16 @@ class PetSkillPickerApp extends Application {
     });
   }
 
-  _refreshLocks(html) {
-    PET_SKILLS.forEach(s => {
-      const locked = s.prereqs.length > 0 && !s.prereqs.some(p => this._selected.has(p));
-      const $row = html.find(`.traaash-pick-row[data-id="${s.id}"]`);
-      $row.find(".pet-pick").prop("disabled", locked);
-      $row.css({ opacity: locked ? "0.4" : "1", cursor: locked ? "default" : "pointer" });
+  _refreshState(html) {
+    const remaining = this._limit - this._selected.size;
+    html.find(".traaash-remaining").text(remaining);
+    html.find(".pet-pick:not(:checked)").each((_, el) => {
+      const $row = $(el).closest(".traaash-pick-row");
+      const disable = remaining <= 0;
+      $(el).prop("disabled", disable);
+      $row.css({ opacity: disable ? "0.4" : "1", cursor: disable ? "default" : "pointer" });
     });
+    html.find("[data-action='confirm']").prop("disabled", remaining !== 0);
   }
 
   async close(options = {}) {
