@@ -220,23 +220,24 @@ const PET_SKILLS = [
   { id: "Tr6SafetyPet0000", name: "Safety",             rank: "trained", prereqs: [] },
   { id: "Tr7AthleticsPet0", name: "Athletics",          rank: "trained", prereqs: [] },
   { id: "Ex1CompanionTrng", name: "Companion Training", rank: "expert",  prereqs: ["Tr1CalmUndrFire0"] },
-  { id: "Ex2MilitaryTrng0", name: "Military Training",  rank: "expert",  prereqs: ["Tr2ToothAndClaw0"] },
-  { id: "Ex3HuntingPet000", name: "Hunting",            rank: "expert",  prereqs: ["Tr3TrackingPet00"] },
-  { id: "Ex4DetectPet0000", name: "Detect",             rank: "expert",  prereqs: ["Tr3TrackingPet00"] },
-  { id: "Ex5ZeroGTraining", name: "Zero-G Training",    rank: "expert",  prereqs: ["Tr7AthleticsPet0"] },
+  { id: "Ex2MilitaryTrng0", name: "Military Training",  rank: "expert",  prereqs: ["Tr1CalmUndrFire0", "Tr2ToothAndClaw0", "Tr3TrackingPet00"] },
+  { id: "Ex3HuntingPet000", name: "Hunting",            rank: "expert",  prereqs: ["Tr2ToothAndClaw0", "Tr3TrackingPet00", "Tr4ForagingPet00"] },
+  { id: "Ex4DetectPet0000", name: "Detect",             rank: "expert",  prereqs: ["Tr3TrackingPet00", "Tr4ForagingPet00", "Tr5RimwisePet000", "Tr6SafetyPet0000"] },
+  { id: "Ex5ZeroGTraining", name: "Zero-G Training",    rank: "expert",  prereqs: ["Tr6SafetyPet0000", "Tr7AthleticsPet0"] },
   { id: "Ms1PanicTraining", name: "Panic Training",     rank: "master",  prereqs: ["Ex1CompanionTrng"] },
   { id: "Ms2XenoTracking0", name: "Xeno Tracking",      rank: "master",  prereqs: ["Ex2MilitaryTrng0"] },
-  { id: "Ms3SearchRescue0", name: "Search & Rescue",    rank: "master",  prereqs: ["Ex3HuntingPet000"] },
+  { id: "Ms3SearchRescue0", name: "Search & Rescue",    rank: "master",  prereqs: ["Ex4DetectPet0000"] },
   { id: "Ms4DetectSubst00", name: "Detect Substance",   rank: "master",  prereqs: ["Ex4DetectPet0000"] },
   { id: "Ms5DetectDisease", name: "Detect Disease",     rank: "master",  prereqs: ["Ex4DetectPet0000"] },
 ];
 
 function _removePetSkillDependents(skillId, current) {
   PET_SKILLS.forEach(s => {
-    if (s.prereqs.includes(skillId) && current.has(s.id)) {
-      current.delete(s.id);
-      _removePetSkillDependents(s.id, current);
-    }
+    if (!s.prereqs.includes(skillId) || !current.has(s.id)) return;
+    // OR logic: only cascade if no other prereq is still satisfied
+    if (s.prereqs.some(p => p !== skillId && current.has(p))) return;
+    current.delete(s.id);
+    _removePetSkillDependents(s.id, current);
   });
 }
 
@@ -249,13 +250,14 @@ function _buildPetSkillsHtml(owned) {
   return tiers.map(({ key, label, bonus }) => {
     const skills = PET_SKILLS.filter(s => s.rank === key);
     const cells = skills.map(s => {
-      const hasPrereqs = s.prereqs.every(p => owned.has(p));
+      const hasPrereqs = s.prereqs.length === 0 || s.prereqs.some(p => owned.has(p));
       const isOwned = owned.has(s.id);
       const disabled = !hasPrereqs && !isOwned ? "disabled" : "";
       const checked = isOwned ? "checked" : "";
       const dim = disabled ? "opacity:0.4;" : "";
       const prereqNames = s.prereqs.map(p => PET_SKILLS.find(x => x.id === p)?.name ?? p).join(", ");
-      const title = prereqNames ? `title="Requires: ${prereqNames}"` : "";
+      const reqLabel = s.prereqs.length > 1 ? "Requires any of" : "Requires";
+      const title = prereqNames ? `title="${reqLabel}: ${prereqNames}"` : "";
       return `<label style="display:flex;align-items:center;gap:4px;${dim}cursor:${disabled ? "default" : "pointer"}" ${title}>
         <input type="checkbox" class="traaash-pet-skill" data-id="${s.id}" ${checked} ${disabled} style="margin:0;cursor:inherit">
         <span style="font-size:0.82em;white-space:nowrap">${s.name}</span>
@@ -271,74 +273,82 @@ function _buildPetSkillsHtml(owned) {
 // Known pet item names from fvtt_mosh_1e_psg. Add custom pet names here.
 const PET_ITEM_NAMES = new Set(["Cat", "Dog", "Rat", "Pet (Organic)", "Pet (Synthetic)"]);
 
-const SYNTHETIC_KEYWORDS = /\bsynthetic\b/i;
+const _PET_SKILL_ICONS = {
+  "Tr3TrackingPet00": "modules/fvtt_mosh_1e_traaash/icons/pet_skills/tracking.png",
+  "Tr7AthleticsPet0": "modules/fvtt_mosh_1e_traaash/icons/pet_skills/tricks_&_stunts.png",
+  "Ex1CompanionTrng": "modules/fvtt_mosh_1e_traaash/icons/pet_skills/emotional_support.png",
+  "Ex2MilitaryTrng0": "modules/fvtt_mosh_1e_traaash/icons/pet_skills/sentry.png",
+  "Ms1PanicTraining": "modules/fvtt_mosh_1e_traaash/icons/pet_skills/service_support.png",
+  "Ms2XenoTracking0": "modules/fvtt_mosh_1e_traaash/icons/pet_skills/tracking.png",
+  "Ms3SearchRescue0": "modules/fvtt_mosh_1e_traaash/icons/pet_skills/rescue.png",
+};
+
+const _PET_SKILL_DESCS = {
+  "Tr1CalmUndrFire0": "Trained to keep calm in dangerous situations, around gunfire, etc.",
+  "Tr2ToothAndClaw0": "Trained to fight viciously, e.g. in pit fights or to defend their owner.",
+  "Tr3TrackingPet00": "Trained to follow spoor on command when presented with a sample.",
+  "Tr4ForagingPet00": "Trained to find and/or retrieve edible plants, bugs, fungus, running water, etc.",
+  "Tr5RimwisePet000": "Trained to intimidate people, distract them to assist in pickpocketing, survive on city streets, etc.",
+  "Tr6SafetyPet0000": "Trained to alert people to safety protocols not being followed (e.g. no seatbelt, no helmet, exposed wires, etc.)",
+  "Tr7AthleticsPet0": "Trained to do athletic feats, e.g. run long distances, leap high into the air, etc.",
+  "Ex1CompanionTrng": "Trained to be a comforting, helpful companion animal.",
+  "Ex2MilitaryTrng0": "Very disciplined. Trained to military standards to attack, subdue, guard, etc.",
+  "Ex3HuntingPet000": "Trained to track and kill prey.",
+  "Ex4DetectPet0000": "Trained to detect and alert owner to the presence of substances when given a sample.",
+  "Ex5ZeroGTraining": "Trained to move nimbly in microgravity.",
+  "Ms1PanicTraining": "Trained to calm down a panicking person with contact and pressure.",
+  "Ms2XenoTracking0": "Trained to track certain kinds of alien creatures. Does not require a sample. Note the type of alien creature it is trained to track.",
+  "Ms3SearchRescue0": "Trained to find people buried under rubble and in other disaster scenarios, and to alert others to their presence. Does not require a sample.",
+  "Ms4DetectSubst00": "Trained to detect and alert owner to the presence of a specific substance. Does not require a sample. Note the substance it is trained to detect.",
+  "Ms5DetectDisease": "Trained to detect and alert owner that someone is infected with a specific disease. Does not require a sample. Note the disease it is trained to detect.",
+};
+
+function _buildPickerContent(selected) {
+  const tiers = [
+    { key: "trained", label: "Trained Pet Skills", bonus: "+10%" },
+    { key: "expert",  label: "Expert Pet Skills",  bonus: "+15%" },
+    { key: "master",  label: "Master Pet Skills",  bonus: "+20%" },
+  ];
+  const sections = tiers.map(({ key, label, bonus }) => {
+    const rows = PET_SKILLS.filter(s => s.rank === key).map(s => {
+      const prereqNames = s.prereqs.map(p => PET_SKILLS.find(x => x.id === p)?.name ?? p).join(", ");
+      const locked = s.prereqs.length > 0 && !s.prereqs.some(p => selected.has(p));
+      const icon = _PET_SKILL_ICONS[s.id];
+      const iconHtml = icon
+        ? `<img src="${icon}" style="width:20px;height:20px;object-fit:contain;flex-shrink:0;border:none;box-shadow:none">`
+        : `<span style="width:20px;height:20px;flex-shrink:0;display:inline-block"></span>`;
+      const reqLabel = s.prereqs.length > 1 ? "Requires any of" : "Requires";
+      const prereqNote = prereqNames
+        ? `<span style="font-size:0.75em;color:#aaa;margin-left:4px;font-style:italic">${reqLabel}: ${prereqNames}</span>` : "";
+      const desc = _PET_SKILL_DESCS[s.id] ?? "";
+      return `<label class="traaash-pick-row" data-id="${s.id}" style="display:flex;align-items:flex-start;gap:8px;padding:5px 8px;border-radius:3px;opacity:${locked ? "0.4" : "1"};cursor:${locked ? "default" : "pointer"}">
+        <input type="checkbox" class="pet-pick" data-id="${s.id}" ${selected.has(s.id) ? "checked" : ""} ${locked ? "disabled" : ""} style="margin-top:2px;flex-shrink:0;cursor:inherit">
+        ${iconHtml}
+        <div style="line-height:1">
+          <span style="font-size:0.87em;font-weight:600">${s.name}</span>${prereqNote}
+          <div style="font-size:0.77em;color:#888;line-height:1.4;margin-top:2px">${desc}</div>
+        </div>
+      </label>`;
+    }).join("");
+    return `<div style="margin-bottom:10px">
+      <div style="font-size:0.68em;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#666;padding:0 8px 4px;border-bottom:1px solid rgba(0,0,0,0.1);margin-bottom:2px">${label} <span style="color:#bbb;font-weight:400">${bonus}</span></div>
+      ${rows}
+    </div>`;
+  }).join("");
+  return `<div style="max-height:500px;overflow-y:auto;padding:2px 0">${sections}</div>`;
+}
 
 async function _showPetSkillPicker(item) {
-  const isSynthetic = SYNTHETIC_KEYWORDS.test(item.name);
-  const trainedSkills = PET_SKILLS.filter(s => s.rank === "trained");
-  const expertSkills  = PET_SKILLS.filter(s => s.rank === "expert");
-
-  function _row(s, note = "") {
-    const noteHtml = note ? `<span style="color:#999;font-size:0.82em"> ${note}</span>` : "";
-    return `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:2px 0">
-      <input type="checkbox" class="pet-pick" data-id="${s.id}" style="margin:0;cursor:inherit">
-      <span style="font-size:0.88em">${s.name}${noteHtml}</span>
-    </label>`;
-  }
-
-  const trainedBlock = `<div id="petTrainedWrap">
-    <div style="font-size:0.72em;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:4px">Trained <span style="color:#bbb">+10%</span></div>
-    <div id="petTrainedPool">${trainedSkills.map(s => _row(s)).join("")}</div>
-  </div>`;
-
-  const expertBlock = `<div id="petExpertWrap" style="display:none">
-    <div style="font-size:0.72em;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:4px">Expert <span style="color:#bbb">+15%</span></div>
-    <div id="petExpertPool">${expertSkills.map(s => {
-      const pre = PET_SKILLS.find(p => s.prereqs.includes(p.id));
-      return _row(s, pre ? `(grants: ${pre.name})` : "");
-    }).join("")}</div>
-  </div>`;
-
-  let content;
-  if (!isSynthetic) {
-    content = `<form style="padding:4px 0">
-      <p style="margin:0 0 10px;font-size:0.88em">Organic pet: pick <strong>1 Trained</strong> skill.</p>
-      ${trainedBlock}
-      <p style="margin:8px 0 0;font-size:0.82em;color:#888">Remaining: <span id="petPickRem">1</span></p>
-    </form>`;
-  } else {
-    content = `<form style="padding:4px 0">
-      <p style="margin:0 0 8px;font-size:0.88em">Synthetic pet: pick <strong>2 Trained</strong> or <strong>1 Expert</strong>.</p>
-      <div style="margin-bottom:10px">
-        <label style="margin-right:16px;cursor:pointer"><input type="radio" name="petMode" value="trained" checked> 2 Trained</label>
-        <label style="cursor:pointer"><input type="radio" name="petMode" value="expert"> 1 Expert</label>
-      </div>
-      ${trainedBlock}
-      ${expertBlock}
-      <p style="margin:8px 0 0;font-size:0.82em;color:#888">Remaining: <span id="petPickRem">2</span></p>
-    </form>`;
-  }
-
   return new Promise(resolve => {
     new Dialog({
       title: `Pet Skills — ${item.name}`,
-      content,
+      content: _buildPickerContent(new Set()),
       buttons: {
         ok: {
           label: "Confirm",
           callback: html => {
-            const $h = $(html);
             const chosen = [];
-            $h.find(".pet-pick:checked").each((_, el) => chosen.push(el.dataset.id));
-
-            if (isSynthetic && $h.find("[name=petMode]:checked").val() === "expert") {
-              for (const id of [...chosen]) {
-                const skill = PET_SKILLS.find(s => s.id === id);
-                for (const pid of skill?.prereqs ?? []) {
-                  if (!chosen.includes(pid)) chosen.push(pid);
-                }
-              }
-            }
+            $(html).find(".pet-pick:checked").each((_, el) => chosen.push(el.dataset.id));
             resolve(chosen);
           },
         },
@@ -348,44 +358,50 @@ async function _showPetSkillPicker(item) {
       close: () => resolve(null),
       render: html => {
         const $h = $(html);
-        const $confirm = $h.find(".dialog-button.ok");
-        $confirm.prop("disabled", true);
-        let limit = isSynthetic ? 2 : 1;
 
-        function refresh($pool) {
-          const n = $pool.find(".pet-pick:checked").length;
-          $h.find("#petPickRem").text(Math.max(0, limit - n));
-          $pool.find(".pet-pick:not(:checked)").prop("disabled", n >= limit);
-          $pool.find(".pet-pick:checked").prop("disabled", false);
-          $confirm.prop("disabled", n !== limit);
-        }
-
-        if (isSynthetic) {
-          const $trW = $h.find("#petTrainedWrap");
-          const $exW = $h.find("#petExpertWrap");
-          const $tr  = $h.find("#petTrainedPool");
-          const $ex  = $h.find("#petExpertPool");
-
-          $h.find("[name=petMode]").on("change", function() {
-            const expert = this.value === "expert";
-            limit = expert ? 1 : 2;
-            $trW.toggle(!expert);
-            $exW.toggle(expert);
-            $tr.find(".pet-pick").prop({ checked: false, disabled: false });
-            $ex.find(".pet-pick").prop({ checked: false, disabled: false });
-            $h.find("#petPickRem").text(limit);
-            $confirm.prop("disabled", true);
+        function refreshLocks() {
+          const selected = new Set();
+          $h.find(".pet-pick:checked").each((_, el) => selected.add(el.dataset.id));
+          $h.find(".traaash-pick-row").each((_, row) => {
+            const $row = $(row);
+            const skill = PET_SKILLS.find(s => s.id === row.dataset.id);
+            if (!skill) return;
+            const locked = skill.prereqs.length > 0 && !skill.prereqs.some(p => selected.has(p));
+            $row.find(".pet-pick").prop("disabled", locked);
+            $row.css({ opacity: locked ? "0.4" : "1", cursor: locked ? "default" : "pointer" });
           });
-
-          $tr.on("change", ".pet-pick", () => refresh($tr));
-          $ex.on("change", ".pet-pick", () => refresh($ex));
-          refresh($tr);
-        } else {
-          $h.on("change", ".pet-pick", () => refresh($h));
-          refresh($h);
         }
+
+        $h.on("change", ".pet-pick", function() {
+          const id = this.dataset.id;
+          if (this.checked) {
+            const autoCheck = (sid) => {
+              const s = PET_SKILLS.find(x => x.id === sid);
+              for (const pid of s?.prereqs ?? []) {
+                const $p = $h.find(`.pet-pick[data-id="${pid}"]`);
+                if (!$p.prop("checked")) { $p.prop("checked", true); autoCheck(pid); }
+              }
+            };
+            autoCheck(id);
+          } else {
+            const autoClear = (sid) => {
+              PET_SKILLS.forEach(s => {
+                if (!s.prereqs.includes(sid)) return;
+                const $d = $h.find(`.pet-pick[data-id="${s.id}"]`);
+                if (!$d.prop("checked")) return;
+                // OR logic: only clear if no other prereq is still checked
+                const otherChecked = s.prereqs.some(p => p !== sid && $h.find(`.pet-pick[data-id="${p}"]`).prop("checked"));
+                if (!otherChecked) { $d.prop("checked", false); autoClear(s.id); }
+              });
+            };
+            autoClear(id);
+          }
+          refreshLocks();
+        });
+
+        refreshLocks();
       },
-    }, { width: 380 }).render(true);
+    }, { width: 520 }).render(true);
   });
 }
 
