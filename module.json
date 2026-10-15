@@ -2,7 +2,7 @@
   "id": "fvtt_mosh_1e_traaash",
   "title": "Mothership 1e — Traaa.sh Extras",
   "description": "Community content and tables from traaa.sh for Mothership 1e. Adds The Company motivation system: players roll 1d10 to discover why their character is in the corporation's pocket.",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "compatibility": {
     "minimum": "11",
     "verified": "14"
@@ -32,6 +32,13 @@
       "type": "Item",
       "name": "items_pet_skills_1e",
       "path": "packs/items_pet_skills_1e.db",
+      "system": "mosh"
+    },
+    {
+      "label": "Equipment (1e)",
+      "type": "Item",
+      "name": "items_equipment_1e",
+      "path": "packs/items_equipment_1e.db",
       "system": "mosh"
     }
   ],
