@@ -2,7 +2,7 @@
   "id": "fvtt_mosh_1e_traaash",
   "title": "Mothership 1e — Traaa.sh Extras",
   "description": "Community content and tables from traaa.sh for Mothership 1e. Adds The Company motivation system: players roll 1d10 to discover why their character is in the corporation's pocket.",
-  "version": "0.2.9",
+  "version": "0.3.0",
   "compatibility": {
     "minimum": "11",
     "verified": "14"
@@ -40,6 +40,13 @@
       "name": "items_equipment_1e",
       "path": "packs/items_equipment_1e.db",
       "system": "mosh"
+    },
+    {
+      "label": "Ypsilon 14 Terminal Screens",
+      "type": "JournalEntry",
+      "name": "journals_ypsilon14_1e",
+      "path": "packs/journals_ypsilon14_1e.db",
+      "system": "mosh"
     }
   ],
   "relationships": {
@@ -58,5 +65,5 @@
   "url": "https://github.com/mechanoid23/fvtt_mosh_1e_traaash",
   "manifest": "https://raw.githubusercontent.com/mechanoid23/fvtt_mosh_1e_traaash/main/module.json",
   "scripts": ["scripts/traaash-hooks.js"],
-  "download": "https://github.com/mechanoid23/fvtt_mosh_1e_traaash/releases/download/v0.2.9/fvtt_mosh_1e_traaash.zip"
+  "download": "https://github.com/mechanoid23/fvtt_mosh_1e_traaash/releases/download/v0.3.0/fvtt_mosh_1e_traaash.zip"
 }
