@@ -247,31 +247,33 @@ function _buildPetSkillsHtml(owned) {
     { key: "expert",  label: "Expert",  bonus: "+15%" },
     { key: "master",  label: "Master",  bonus: "+20%" },
   ];
-  return tiers.map(({ key, label, bonus }) => {
-    const skills = PET_SKILLS.filter(s => s.rank === key);
-    const cells = skills.map(s => {
-      const hasPrereqs = s.prereqs.length === 0 || s.prereqs.some(p => owned.has(p));
-      const isOwned = owned.has(s.id);
-      const disabled = !hasPrereqs && !isOwned ? "disabled" : "";
-      const checked = isOwned ? "checked" : "";
-      const dim = disabled ? "opacity:0.4;" : "";
-      const prereqNames = s.prereqs.map(p => PET_SKILLS.find(x => x.id === p)?.name ?? p).join(", ");
-      const reqLabel = s.prereqs.length > 1 ? "Requires any of" : "Requires";
-      const title = prereqNames ? `title="${reqLabel}: ${prereqNames}"` : "";
-      return `<label style="display:flex;align-items:center;gap:4px;${dim}cursor:${disabled ? "default" : "pointer"}" ${title}>
-        <input type="checkbox" class="traaash-pet-skill" data-id="${s.id}" ${checked} ${disabled} style="margin:0;cursor:inherit">
-        <span style="font-size:0.82em;white-space:nowrap">${s.name}</span>
-      </label>`;
+  const sections = tiers.map(({ key, label, bonus }) => {
+    const skills = PET_SKILLS.filter(s => s.rank === key && owned.has(s.id));
+    if (!skills.length) return "";
+    const pills = skills.map(s => {
+      const icon = _PET_SKILL_ICONS[s.id];
+      const iconHtml = icon
+        ? `<img src="${icon}" style="width:14px;height:14px;object-fit:contain;flex-shrink:0;border:none;box-shadow:none">`
+        : "";
+      return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.82em;padding:2px 7px;background:rgba(0,0,0,0.07);border-radius:3px;white-space:nowrap">${iconHtml}${s.name}</span>`;
     }).join("");
-    return `<div style="margin-bottom:8px">
-      <div style="font-size:0.72em;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:3px">${label} <span style="color:#bbb">${bonus}</span></div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px 14px">${cells}</div>
+    return `<div style="margin-bottom:6px">
+      <div style="font-size:0.72em;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:4px">${label} <span style="color:#bbb">${bonus}</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">${pills}</div>
     </div>`;
-  }).join("");
+  }).filter(Boolean);
+  return sections.length
+    ? sections.join("")
+    : `<p style="font-size:0.82em;color:#aaa;margin:0;font-style:italic">No skills assigned.</p>`;
 }
 
-// Known pet item names from fvtt_mosh_1e_psg. Add custom pet names here.
+// Legacy name set for items dragged from fvtt_mosh_1e_psg before sourceId was available.
 const PET_ITEM_NAMES = new Set(["Cat", "Dog", "Rat", "Pet (Organic)", "Pet (Synthetic)"]);
+
+function _isPetItem(item) {
+  const sourceId = item.flags?.core?.sourceId ?? "";
+  return PET_ITEM_NAMES.has(item.name) || sourceId.includes("fvtt_mosh_1e_traaash.items_equipment_1e");
+}
 
 const _PET_SKILL_ICONS = {
   "Tr3TrackingPet00": "modules/fvtt_mosh_1e_traaash/icons/pet_skills/tracking.png",
@@ -489,7 +491,7 @@ Hooks.on("renderItemSheet", (app, html, _data) => {
 
   if (!enabled) {
     if (!item.isOwner) return;
-    if (!PET_ITEM_NAMES.has(item.name)) return;
+    if (!_isPetItem(item)) return;
     const $link = $(`<div style="text-align:right;padding:4px 10px 6px">
       <a class="traaash-enable-pet-skills" style="font-size:0.8em;color:#aaa">Set up pet skills →</a>
     </div>`);
@@ -507,18 +509,6 @@ Hooks.on("renderItemSheet", (app, html, _data) => {
     <div style="font-size:0.78em;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#555;margin-bottom:8px">Pet Skills</div>
     ${_buildPetSkillsHtml(owned)}
   </div>`);
-
-  $section.find(".traaash-pet-skill").on("change", async (ev) => {
-    const id = ev.currentTarget.dataset.id;
-    const current = new Set(item.getFlag(MODULE_ID, "petSkills") ?? []);
-    if (ev.currentTarget.checked) {
-      current.add(id);
-    } else {
-      current.delete(id);
-      _removePetSkillDependents(id, current);
-    }
-    await item.setFlag(MODULE_ID, "petSkills", [...current]);
-  });
 
   $body.prepend($section);
 });
