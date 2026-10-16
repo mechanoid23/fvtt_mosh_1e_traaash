@@ -243,23 +243,30 @@ function _removePetSkillDependents(skillId, current) {
 
 function _buildPetSkillsHtml(owned) {
   const tiers = [
-    { key: "trained", label: "Trained", bonus: "+10%" },
-    { key: "expert",  label: "Expert",  bonus: "+15%" },
-    { key: "master",  label: "Master",  bonus: "+20%" },
+    { key: "trained", label: "Trained Pet Skills", bonus: "+10%" },
+    { key: "expert",  label: "Expert Pet Skills",  bonus: "+15%" },
+    { key: "master",  label: "Master Pet Skills",  bonus: "+20%" },
   ];
   const sections = tiers.map(({ key, label, bonus }) => {
     const skills = PET_SKILLS.filter(s => s.rank === key && owned.has(s.id));
     if (!skills.length) return "";
-    const pills = skills.map(s => {
+    const rows = skills.map(s => {
       const icon = _PET_SKILL_ICONS[s.id];
       const iconHtml = icon
-        ? `<img src="${icon}" style="width:14px;height:14px;object-fit:contain;flex-shrink:0;border:none;box-shadow:none">`
-        : "";
-      return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:0.82em;padding:2px 7px;background:rgba(0,0,0,0.07);border-radius:3px;white-space:nowrap">${iconHtml}${s.name}</span>`;
+        ? `<img src="${icon}" style="width:16px;height:16px;object-fit:contain;flex-shrink:0;border:none;box-shadow:none;margin-top:1px">`
+        : `<span style="width:16px;flex-shrink:0;display:inline-block"></span>`;
+      const desc = _PET_SKILL_DESCS[s.id] ?? "";
+      return `<div style="display:flex;gap:6px;padding:3px 0;border-bottom:1px solid rgba(0,0,0,0.06)">
+        ${iconHtml}
+        <div>
+          <span style="font-size:0.83em;font-weight:600">${s.name}:</span>
+          <span style="font-size:0.83em;color:#555"> ${desc}</span>
+        </div>
+      </div>`;
     }).join("");
-    return `<div style="margin-bottom:6px">
-      <div style="font-size:0.72em;text-transform:uppercase;letter-spacing:1px;color:#888;margin-bottom:4px">${label} <span style="color:#bbb">${bonus}</span></div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px">${pills}</div>
+    return `<div style="margin-bottom:10px">
+      <div style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#666;margin-bottom:4px">${label} <span style="color:#bbb;font-weight:400">${bonus}</span></div>
+      ${rows}
     </div>`;
   }).filter(Boolean);
   return sections.length
@@ -272,7 +279,10 @@ const PET_ITEM_NAMES = new Set(["Cat", "Dog", "Rat", "Pet (Organic)", "Pet (Synt
 
 function _isPetItem(item) {
   const sourceId = item.flags?.core?.sourceId ?? "";
-  return PET_ITEM_NAMES.has(item.name) || sourceId.includes("fvtt_mosh_1e_traaash.items_equipment_1e");
+  const uuid = item.uuid ?? "";
+  return PET_ITEM_NAMES.has(item.name)
+    || sourceId.includes("fvtt_mosh_1e_traaash.items_equipment_1e")
+    || uuid.includes("fvtt_mosh_1e_traaash.items_equipment_1e");
 }
 
 const _PET_SKILL_ICONS = {
