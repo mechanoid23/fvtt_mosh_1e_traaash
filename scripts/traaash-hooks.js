@@ -128,6 +128,15 @@ Hooks.once("init", () => {
     type: Boolean,
     default: true,
   });
+
+  game.settings.register(MODULE_ID, "yps14SystemUnlocked", {
+    name: "Ypsilon 14: System Unlocked",
+    hint: "When enabled, the SYSTEM [A] option on the terminal shows LIFE SUPPORT and SCUTTLE instead of ACCESS DENIED. Toggle this once players obtain Sonya's keycard or hack the terminal.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false,
+  });
 });
 
 // ---- Ready ----
@@ -137,7 +146,16 @@ Hooks.once("init", () => {
 const _petSkillPackKeys = new Set();
 
 Hooks.once("ready", async () => {
-  game.traaash = { rollCompanyMotivation };
+  game.traaash = { rollCompanyMotivation, Yps14TerminalApp };
+
+  // Ypsilon 14 terminal — receive GM broadcasts
+  game.socket.on(`module.${MODULE_ID}`, data => {
+    if (data.action !== "yps14:open") return;
+    if (game.user.isGM) return;
+    const existing = Object.values(ui.windows).find(w => w.id === "traaash-yps14-terminal");
+    if (existing) existing._navigate(data.screen);
+    else new Yps14TerminalApp(data.screen).render(true);
+  });
 
   const PET_PACK_NAME = "items_pet_skills_1e";
   for (const pack of game.packs) {
@@ -464,6 +482,241 @@ class PetSkillPickerApp extends Application {
 
 async function _showPetSkillPicker(item) {
   return new Promise(resolve => new PetSkillPickerApp(item, resolve).render(true));
+}
+
+// === Ypsilon 14 Interactive Terminal ===
+
+const YPS14_SCREENS = {
+  main: {
+    title: "YPSILON 14 CONTROL TERMINAL",
+    lines: [
+      { type: "nav", screen: "diagnostics", label: "DIAGNOSTICS" },
+      { type: "nav", screen: "schedule",    label: "SCHEDULE"    },
+      { type: "nav", screen: "controls",    label: "CONTROLS"    },
+      { type: "nav", screen: "roster",      label: "ROSTER"      },
+      { type: "nav", screen: "comms",       label: "COMMS"       },
+    ],
+  },
+  diagnostics: {
+    title: "DIAGNOSTICS",
+    back: "main",
+    lines: [
+      { type: "nav", screen: "layout", label: "LAYOUT" },
+      { type: "nav", screen: "status", label: "STATUS" },
+    ],
+  },
+  layout: {
+    title: "STATION LAYOUT",
+    back: "diagnostics",
+    image: "modules/fvtt_mosh_1e_traaash/images/ypsilon-14_layout.png",
+    lines: [],
+  },
+  status: {
+    title: "STATUS",
+    back: "diagnostics",
+    secret: "The station is not exactly up to code.",
+    lines: [
+      { type: "text", label: "SYSTEMS CHECK ..." },
+      { type: "text", label: "WARNING: AIR FILTERS LAST REPLACED 455 DAYS AGO" },
+      { type: "text", label: "(255 DAYS PAST RECOMMENDATION)" },
+      { type: "text", label: "WARNING: SHOWER 5 OUT OF ORDER AS OF 1 DAY AGO" },
+      { type: "text", label: "WARNING: MINESHAFT ELEVATOR LAST MAINTAINED 455 DAYS AGO" },
+      { type: "text", label: "(255 DAYS PAST RECOMMENDATION)" },
+      { type: "text", label: "WARNING: AIRFLOW 82%" },
+      { type: "text", label: "(SUBOPTIMAL: REPLACE FILTERS AND CHECK VENTS FOR BLOCKAGES)" },
+      { type: "text", label: "ALL SYSTEMS WITHIN ACCEPTABLE OPERATING CONDITIONS" },
+    ],
+  },
+  schedule: {
+    title: "SCHEDULE",
+    back: "main",
+    secret: "Replace 'IMV GRASSHOPPER' with your players' ship. If players go back further in the logs, there's just more of the MV Vasquez XV and CTV Horn ov Plenty alternating each month. Reset astral calendar 666 to campaign calendar.",
+    lines: [
+      { type: "text", label: "666-07-02 06:33 - IMV GRASSHOPPER    - RESUPPLY - DOCKING BAY 2 - DOCK"  },
+      { type: "text", label: "666-06-04 08:34 - RSV THE HERACLES   - RESEARCH - DOCKING BAY 1 - DOCK"  },
+      { type: "text", label: "666-06-02 12:23 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DEPART"},
+      { type: "text", label: "666-06-01 16:04 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DOCK"  },
+      { type: "text", label: "666-05-02 08:32 - MV VASQUEZ XV      - PICKUP   - DOCKING BAY 1 - DEPART" },
+      { type: "text", label: "666-05-01 06:02 - MV VASQUEZ XV      - PICKUP   - DOCKING BAY 1 - DOCK"   },
+      { type: "text", label: "666-04-02 13:02 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DEPART"},
+      { type: "text", label: "666-04-01 15:54 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DOCK"  },
+      { type: "text", label: "666-06-02 08:33 - MV VAZQUEZ XV      - PICKUP   - DOCKING BAY 1 - DEPART" },
+      { type: "text", label: "666-06-01 06:04 - MV VAZQUEZ XV      - PICKUP   - DOCKING BAY 1 - DOCK"   },
+      { type: "text", label: "&gt; MORE" },
+    ],
+  },
+  roster: {
+    title: "ROSTER",
+    back: "main",
+    lines: [
+      { type: "text", label: "01. VERHOEVEN, SONYA     - OVERSEER"          },
+      { type: "text", label: "02. SINGH, ASHRAF        - BREAKER"           },
+      { type: "text", label: "03. DE BEERS, DANA       - HEAD DRILLER"      },
+      { type: "text", label: "04. HUIZINGA, JEROME     - ASST. DRILLER"     },
+      { type: "text", label: "05. TOBIN, ROSA          - MINING ENGINEER"   },
+      { type: "text", label: "06. MIKKELSEN, MICHAEL   - MINING ENGINEER"   },
+      { type: "text", label: "07. KANTARO, KENJI       - LOADER"            },
+      { type: "text", label: "08. OBOWE, MORGAN        - LOADER"            },
+      { type: "text", label: "09. KENBISHI, RIE        - PUTTER"            },
+      { type: "text", label: "10. VACANT"                                   },
+    ],
+  },
+  controls: {
+    title: "CONTROLS",
+    back: "main",
+    secret: "The [A] indicates 'Administrator.' Toggle 'Ypsilon 14: System Unlocked' in Game Settings once players obtain Sonya's keycard or hack the terminal.",
+    lines: [
+      { type: "nav", screen: "airlocks",    label: "AIRLOCKS"   },
+      { type: "nav", screen: "showers",     label: "SHOWERS"    },
+      { type: "nav", screen: "system_auto", label: "SYSTEM [A]" },
+    ],
+  },
+  airlocks: {
+    title: "AIRLOCKS",
+    back: "controls",
+    secret: "The airlocks must be closed manually before they can be locked.",
+    lines: [
+      { type: "text", label: "DOCKING BAY 1 [&gt; LOCKED]"   },
+      { type: "text", label: "DOCKING BAY 2 [&gt; UNLOCKED]" },
+      { type: "text", label: "MINESHAFT     [&gt; UNLOCKED]" },
+    ],
+  },
+  showers: {
+    title: "SHOWERS",
+    back: "controls",
+    secret: "Shower 5 is broken and can't be turned on.",
+    lines: [
+      { type: "text", label: "SHOWER 1 [&gt; OFF]" },
+      { type: "text", label: "SHOWER 2 [&gt; OFF]" },
+      { type: "text", label: "SHOWER 3 [&gt; OFF]" },
+      { type: "text", label: "SHOWER 4 [&gt; OFF]" },
+      { type: "text", label: "SHOWER 5 [&gt; OFF]" },
+    ],
+  },
+  system_locked: {
+    title: "SYSTEM",
+    back: "controls",
+    secret: "Players don't have Sonya's keycard. Toggle 'Ypsilon 14: System Unlocked' in Game Settings once they obtain it or hack the terminal.",
+    lines: [
+      { type: "text", label: "[ACCESS DENIED. ADMIN KEYCARD REQUIRED.]" },
+    ],
+  },
+  system_granted: {
+    title: "SYSTEM",
+    back: "controls",
+    secret: "Players have Sonya's keycard or hacked the terminal.",
+    lines: [
+      { type: "text", label: "[ACCESS GRANTED. WELCOME, SONYA.]"  },
+      { type: "nav",  screen: "life_support", label: "LIFE SUPPORT" },
+      { type: "nav",  screen: "scuttle",      label: "SCUTTLE"      },
+    ],
+  },
+  life_support: {
+    title: "LIFE SUPPORT",
+    back: "system_granted",
+    secret: "This won't help much — the monster doesn't need oxygen.",
+    lines: [
+      { type: "text", label: "LIFE SUPPORT [&gt; ON]" },
+    ],
+  },
+  scuttle: {
+    title: "SCUTTLE",
+    back: "system_granted",
+    lines: [
+      { type: "text", label: "[WARNING: THIS WILL INITIATE A 10-MINUTE STATION SELF-DESTRUCT SEQUENCE." },
+      { type: "text", label: "TYPE 'SCUTTLE' TO INITIATE. SEQUENCE IS IRREVERSIBLE AFTER 5 MINUTES.]"  },
+    ],
+  },
+  comms: {
+    title: "COMMS",
+    back: "main",
+    secret: "Replace 'IMV GRASSHOPPER' with your players' ship. If any other ships are nearby, add them.",
+    lines: [
+      { type: "text", label: "SCANNING FOR NEARBY SHIPS..."   },
+      { type: "text", label: "&gt; HAIL RSV THE HERACLES"     },
+      { type: "text", label: "&gt; HAIL IMV GRASSHOPPER"       },
+    ],
+  },
+};
+
+function _buildYps14Html(screenKey) {
+  const screen = YPS14_SCREENS[screenKey];
+  if (!screen) return `<div style="color:red;padding:16px">Unknown screen: ${screenKey}</div>`;
+  const isGM = game.user.isGM;
+  const parts = [];
+
+  if (isGM && screen.secret) {
+    parts.push(`<div style="background:#1a0000;color:#cc6666;border:1px solid #550000;padding:6px 10px;margin-bottom:12px;font-size:0.78em;line-height:1.4;border-radius:2px">${screen.secret}</div>`);
+  }
+
+  parts.push(`<div style="letter-spacing:2px;margin-bottom:14px">${screen.title}</div>`);
+
+  if (screen.image) {
+    parts.push(`<img src="${screen.image}" style="max-width:100%;display:block;margin-bottom:10px">`);
+  }
+
+  for (const line of screen.lines ?? []) {
+    if (line.type === "nav") {
+      let target = line.screen;
+      if (target === "system_auto") {
+        target = game.settings.get(MODULE_ID, "yps14SystemUnlocked") ? "system_granted" : "system_locked";
+      }
+      parts.push(`<div class="yps14-nav" data-screen="${target}" style="cursor:pointer;padding:2px 0;user-select:none">&gt; ${line.label}</div>`);
+    } else {
+      parts.push(`<div style="padding:2px 0">${line.label}</div>`);
+    }
+  }
+
+  if (screen.back) {
+    parts.push(`<div class="yps14-back" data-screen="${screen.back}" style="cursor:pointer;margin-top:12px;padding:2px 0;user-select:none">&lt; BACK</div>`);
+  }
+
+  if (isGM) {
+    parts.push(`<div style="margin-top:16px;padding-top:8px;border-top:1px solid #1a4a1a">
+      <button class="yps14-broadcast" type="button" style="background:#0a1f0a;color:#33dd22;border:1px solid #1a4a1a;padding:3px 14px;cursor:pointer;font-family:inherit;font-size:0.78em;letter-spacing:1px">BROADCAST TO PLAYERS</button>
+    </div>`);
+  }
+
+  return `<div style="background:#030e03;color:#33dd22;font-family:'Courier New',monospace;padding:20px 24px;line-height:1.7">${parts.join("")}</div>`;
+}
+
+class Yps14TerminalApp extends Application {
+  static get defaultOptions() {
+    return foundry.utils.mergeObject(super.defaultOptions, {
+      id: "traaash-yps14-terminal",
+      classes: ["dialog"],
+      width: 640,
+      height: "auto",
+      resizable: true,
+    });
+  }
+
+  constructor(screenKey = "main", options = {}) {
+    super(options);
+    this._screen = screenKey;
+  }
+
+  get title() { return "Ypsilon 14 Terminal"; }
+
+  async _renderInner() {
+    return $(_buildYps14Html(this._screen));
+  }
+
+  activateListeners(html) {
+    super.activateListeners(html);
+    html.on("click", ".yps14-nav",  ev => this._navigate(ev.currentTarget.dataset.screen));
+    html.on("click", ".yps14-back", ev => this._navigate(ev.currentTarget.dataset.screen));
+    html.on("click", ".yps14-broadcast", () => {
+      game.socket.emit(`module.${MODULE_ID}`, { action: "yps14:open", screen: this._screen });
+      ui.notifications.info(`Ypsilon 14 | Broadcasting: ${YPS14_SCREENS[this._screen]?.title}`);
+    });
+  }
+
+  _navigate(screenKey) {
+    if (!YPS14_SCREENS[screenKey]) return;
+    this._screen = screenKey;
+    this.render(true);
+  }
 }
 
 // Remove pet skill entries from any dialog (e.g. MCG skill picker).
