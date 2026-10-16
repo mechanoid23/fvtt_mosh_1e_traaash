@@ -274,15 +274,15 @@ function _buildPetSkillsHtml(owned) {
     : `<p style="font-size:0.82em;color:#aaa;margin:0;font-style:italic">No skills assigned.</p>`;
 }
 
-// Legacy name set for items dragged from fvtt_mosh_1e_psg before sourceId was available.
-const PET_ITEM_NAMES = new Set(["Cat", "Dog", "Rat", "Pet (Organic)", "Pet (Synthetic)"]);
+const PET_ITEM_NAMES = new Set([
+  "Cat", "Dog", "Rat", "Pet (Organic)", "Pet (Synthetic)",
+  "Bird", "Chameleon", "Cockroach", "Ferret", "Fish", "Frog",
+  "Guinea Pig", "Hamster", "Hedgehog", "Iguana", "Monkey", "Mouse",
+  "Parrot", "Rabbit", "Robotic Dog", "Snake", "Spider", "Turtle",
+]);
 
 function _isPetItem(item) {
-  const sourceId = item.flags?.core?.sourceId ?? "";
-  const uuid = item.uuid ?? "";
-  return PET_ITEM_NAMES.has(item.name)
-    || sourceId.includes("fvtt_mosh_1e_traaash.items_equipment_1e")
-    || uuid.includes("fvtt_mosh_1e_traaash.items_equipment_1e");
+  return PET_ITEM_NAMES.has(item.name);
 }
 
 const _PET_SKILL_ICONS = {
