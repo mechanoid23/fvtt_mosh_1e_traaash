@@ -129,13 +129,27 @@ Hooks.once("init", () => {
     default: true,
   });
 
-  game.settings.register(MODULE_ID, "yps14SystemUnlocked", {
-    name: "Ypsilon 14: System Unlocked",
-    hint: "Forces SYSTEM [A] to show ACCESS GRANTED regardless of keycard. Use for hacking scenarios. Normally the system unlocks automatically when any player character has 'Sonya\\'s Key Card' in their inventory.",
+  game.settings.register(MODULE_ID, "yps14SystemAccess", {
+    name: "Ypsilon 14: System [A] Access Override",
+    hint: "Auto: unlocks when any player character has Sonya's Key Card. Locked: always ACCESS DENIED (overrides keycard). Unlocked: always ACCESS GRANTED (hacking scenarios). Can also be cycled from inside the terminal.",
     scope: "world",
     config: true,
-    type: Boolean,
-    default: false,
+    type: String,
+    choices: {
+      auto:     "Auto (check for Sonya's Key Card)",
+      locked:   "Force Locked (ACCESS DENIED)",
+      unlocked: "Force Unlocked (ACCESS GRANTED)",
+    },
+    default: "auto",
+  });
+
+  game.settings.register(MODULE_ID, "yps14ShipName", {
+    name: "Ypsilon 14: Player Ship Name",
+    hint: "Replaces 'IMV GRASSHOPPER' in the Schedule and Comms screens. Update to match your players' ship.",
+    scope: "world",
+    config: true,
+    type: String,
+    default: "IMV GRASSHOPPER",
   });
 
   game.settings.register(MODULE_ID, "yps14State", {
@@ -513,8 +527,16 @@ async function _setYps14State(state) {
 }
 
 function _yps14SystemUnlocked() {
-  if (game.settings.get(MODULE_ID, "yps14SystemUnlocked")) return true;
+  const access = game.settings.get(MODULE_ID, "yps14SystemAccess");
+  if (access === "unlocked") return true;
+  if (access === "locked")   return false;
   return game.actors.some(a => a.items?.some(i => i.name === "Sonya's Key Card"));
+}
+
+async function _yps14CycleAccess() {
+  const cur  = game.settings.get(MODULE_ID, "yps14SystemAccess");
+  const next = cur === "auto" ? "locked" : cur === "locked" ? "unlocked" : "auto";
+  await game.settings.set(MODULE_ID, "yps14SystemAccess", next);
 }
 
 function _yps14ChatMsg(text) {
@@ -538,21 +560,26 @@ async function _yps14Confirm(content) {
   }).render(true));
 }
 
-const SCHEDULE_ENTRIES = [
-  "666-07-02 06:33 - IMV GRASSHOPPER    - RESUPPLY - DOCKING BAY 2 - DOCK",
-  "666-06-04 08:34 - RSV THE HERACLES   - RESEARCH - DOCKING BAY 1 - DOCK",
-  "666-06-02 12:23 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DEPART",
-  "666-06-01 16:04 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DOCK",
-  "666-05-02 08:32 - MV VASQUEZ XV      - PICKUP   - DOCKING BAY 1 - DEPART",
-  "666-05-01 06:02 - MV VASQUEZ XV      - PICKUP   - DOCKING BAY 1 - DOCK",
-  "666-04-02 13:02 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DEPART",
-  "666-04-01 15:54 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DOCK",
-  "666-06-02 08:33 - MV VAZQUEZ XV      - PICKUP   - DOCKING BAY 1 - DEPART",
-  "666-06-01 06:04 - MV VAZQUEZ XV      - PICKUP   - DOCKING BAY 1 - DOCK",
-];
+function _getScheduleEntries() {
+  const ship = game.settings.get(MODULE_ID, "yps14ShipName").padEnd(18);
+  return [
+    `666-07-02 06:33 - ${ship}- RESUPPLY - DOCKING BAY 2 - DOCK`,
+    "666-06-04 08:34 - RSV THE HERACLES   - RESEARCH - DOCKING BAY 1 - DOCK",
+    "666-06-02 12:23 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DEPART",
+    "666-06-01 16:04 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DOCK",
+    "666-05-02 08:32 - MV VASQUEZ XV      - PICKUP   - DOCKING BAY 1 - DEPART",
+    "666-05-01 06:02 - MV VASQUEZ XV      - PICKUP   - DOCKING BAY 1 - DOCK",
+    "666-04-02 13:02 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DEPART",
+    "666-04-01 15:54 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DOCK",
+    "666-06-02 08:33 - MV VAZQUEZ XV      - PICKUP   - DOCKING BAY 1 - DEPART",
+    "666-06-01 06:04 - MV VAZQUEZ XV      - PICKUP   - DOCKING BAY 1 - DOCK",
+  ];
+}
 const SCHEDULE_PAGE_SIZE = 10;
 
-const COMMS_SHIPS = ["RSV THE HERACLES", "IMV GRASSHOPPER"];
+function _getCommsShips() {
+  return ["RSV THE HERACLES", game.settings.get(MODULE_ID, "yps14ShipName")];
+}
 
 const YPS14_SCREENS = {
   main: {
@@ -619,7 +646,7 @@ const YPS14_SCREENS = {
   controls: {
     title: "CONTROLS",
     back: "main",
-    secret: "The [A] indicates 'Administrator.' SYSTEM [A] automatically shows ACCESS GRANTED when any player character has 'Sonya\\'s Key Card' in their inventory, or when 'Ypsilon 14: System Unlocked' is enabled in Game Settings (for hacking).",
+    secret: "The [A] indicates 'Administrator.' SYSTEM [A] resolves based on the 'SYSTEM [A]: AUTO ↻' toggle in the terminal footer (auto / locked / unlocked). Auto checks whether any player character has Sonya\\'s Key Card. Use 'locked' to force denial even when the card is present; use 'unlocked' for hacking scenarios.",
     lines: [
       { type: "nav", screen: "airlocks",    label: "AIRLOCKS"   },
       { type: "nav", screen: "showers",     label: "SHOWERS"    },
@@ -639,7 +666,7 @@ const YPS14_SCREENS = {
   system_locked: {
     title: "SYSTEM",
     back: "controls",
-    secret: "No player character has 'Sonya\\'s Key Card'. Once they obtain it the system screen automatically shows ACCESS GRANTED. Alternatively, enable 'Ypsilon 14: System Unlocked' in Game Settings for a hacking scenario.",
+    secret: "No player character has Sonya\\'s Key Card and SYSTEM [A] is set to AUTO or LOCKED. Once the card is obtained (and mode is AUTO), this screen shows ACCESS GRANTED automatically. Use the 'SYSTEM [A]: ↻' toggle in the footer to override.",
     lines: [
       { type: "text", label: "[ACCESS DENIED. ADMIN KEYCARD REQUIRED.]" },
     ],
@@ -647,7 +674,7 @@ const YPS14_SCREENS = {
   system_granted: {
     title: "SYSTEM",
     back: "controls",
-    secret: "A player character has 'Sonya\\'s Key Card', or 'Ypsilon 14: System Unlocked' is enabled in Game Settings.",
+    secret: "A player character has Sonya\\'s Key Card (and mode is AUTO), or SYSTEM [A] is set to UNLOCKED. Use the 'SYSTEM [A]: ↻' toggle in the footer to lock it out again.",
   },
   life_support: {
     title: "LIFE SUPPORT",
@@ -689,15 +716,16 @@ function _buildYps14Html(screenKey, { schedulePage = 0 } = {}) {
 
   // Dynamic screen content
   if (screenKey === "schedule") {
+    const entries = _getScheduleEntries();
     const start = schedulePage * SCHEDULE_PAGE_SIZE;
     const end   = start + SCHEDULE_PAGE_SIZE;
     if (schedulePage > 0) {
       parts.push(`<div class="yps14-page" data-dir="-1" style="${_YPS14_NAV}">&lt; LESS</div>`);
     }
-    for (const entry of SCHEDULE_ENTRIES.slice(start, end)) {
+    for (const entry of entries.slice(start, end)) {
       parts.push(`<div style="${_YPS14_TEXT}">${entry}</div>`);
     }
-    if (end < SCHEDULE_ENTRIES.length) {
+    if (end < entries.length) {
       parts.push(`<div class="yps14-page" data-dir="1" style="${_YPS14_NAV}">&gt; MORE</div>`);
     }
   } else if (screenKey === "airlocks") {
@@ -732,7 +760,7 @@ function _buildYps14Html(screenKey, { schedulePage = 0 } = {}) {
     }
   } else if (screenKey === "comms") {
     parts.push(`<div style="${_YPS14_TEXT}">SCANNING FOR NEARBY SHIPS...</div>`);
-    for (const ship of COMMS_SHIPS) {
+    for (const ship of _getCommsShips()) {
       parts.push(`<div class="yps14-hail" data-ship="${ship}" style="${_YPS14_NAV}">&gt; HAIL ${ship}</div>`);
     }
   } else {
@@ -755,8 +783,12 @@ function _buildYps14Html(screenKey, { schedulePage = 0 } = {}) {
   }
 
   if (isGM) {
-    parts.push(`<div style="margin-top:16px;padding-top:8px;border-top:1px solid #1a4a1a">
+    const access = game.settings.get(MODULE_ID, "yps14SystemAccess");
+    const accessColor = access === "locked" ? "#cc8844" : access === "unlocked" ? "#66ff44" : "#33dd22";
+    const accessLabel = access === "locked" ? "LOCKED" : access === "unlocked" ? "UNLOCKED" : "AUTO";
+    parts.push(`<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:16px;padding-top:8px;border-top:1px solid #1a4a1a">
       <button class="yps14-broadcast" type="button" style="background:#0a1f0a;color:#33dd22;border:1px solid #1a4a1a;padding:3px 14px;cursor:pointer;font-family:inherit;font-size:0.78em;letter-spacing:1px">BROADCAST TO PLAYERS</button>
+      <div class="yps14-cycle-access" title="Cycle: auto → locked → unlocked" style="cursor:pointer;font-size:0.78em;color:${accessColor};user-select:none">SYSTEM [A]: ${accessLabel} ↻</div>
     </div>`);
   }
 
@@ -792,7 +824,8 @@ class Yps14TerminalApp extends Application {
     html.on("click", ".yps14-back",      ev => this._navigate(ev.currentTarget.dataset.screen));
     html.on("click", ".yps14-page",      ev => { this._schedulePage += parseInt(ev.currentTarget.dataset.dir); this.render(true); });
     html.on("click", ".yps14-toggle",    ev => this._handleToggle(ev.currentTarget.dataset.toggle));
-    html.on("click", ".yps14-hail",      ev => this._handleHail(ev.currentTarget.dataset.ship));
+    html.on("click", ".yps14-hail",         ev => this._handleHail(ev.currentTarget.dataset.ship));
+    html.on("click", ".yps14-cycle-access", () => _yps14CycleAccess().then(() => this.render(true)));
     html.on("click", ".yps14-broadcast", () => {
       game.socket.emit(`module.${MODULE_ID}`, { action: "yps14:open", screen: this._screen });
       ui.notifications.info(`Ypsilon 14 | Broadcasting: ${YPS14_SCREENS[this._screen]?.title ?? this._screen}`);
