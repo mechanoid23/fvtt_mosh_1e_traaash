@@ -131,11 +131,18 @@ Hooks.once("init", () => {
 
   game.settings.register(MODULE_ID, "yps14SystemUnlocked", {
     name: "Ypsilon 14: System Unlocked",
-    hint: "When enabled, the SYSTEM [A] option on the terminal shows LIFE SUPPORT and SCUTTLE instead of ACCESS DENIED. Toggle this once players obtain Sonya's keycard or hack the terminal.",
+    hint: "Forces SYSTEM [A] to show ACCESS GRANTED regardless of keycard. Use for hacking scenarios. Normally the system unlocks automatically when any player character has 'Sonya\\'s Key Card' in their inventory.",
     scope: "world",
     config: true,
     type: Boolean,
     default: false,
+  });
+
+  game.settings.register(MODULE_ID, "yps14State", {
+    scope: "world",
+    config: false,
+    type: String,
+    default: "",
   });
 });
 
@@ -486,6 +493,67 @@ async function _showPetSkillPicker(item) {
 
 // === Ypsilon 14 Interactive Terminal ===
 
+function _getYps14State() {
+  const DEFAULT = {
+    airlocks: { bay1: true, bay2: false, mineshaft: false },
+    showers: [false, false, false, false, false],
+    lifeSupport: true,
+    scuttle: false,
+  };
+  try {
+    const raw = game.settings.get(MODULE_ID, "yps14State");
+    if (!raw) return DEFAULT;
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT, ...parsed, airlocks: { ...DEFAULT.airlocks, ...(parsed.airlocks ?? {}) } };
+  } catch { return DEFAULT; }
+}
+
+async function _setYps14State(state) {
+  await game.settings.set(MODULE_ID, "yps14State", JSON.stringify(state));
+}
+
+function _yps14SystemUnlocked() {
+  if (game.settings.get(MODULE_ID, "yps14SystemUnlocked")) return true;
+  return game.actors.some(a => a.items?.some(i => i.name === "Sonya's Key Card"));
+}
+
+function _yps14ChatMsg(text) {
+  ChatMessage.create({
+    content: `<div style="font-family:'Courier New',monospace;background:#030e03;color:#33dd22;padding:6px 10px;border-radius:2px">${text}</div>`,
+    speaker: { alias: "YPSILON 14" },
+  });
+}
+
+async function _yps14Confirm(content) {
+  if (foundry.applications?.api?.DialogV2) {
+    return foundry.applications.api.DialogV2.confirm({ content, window: { title: "Confirm" } }).catch(() => false);
+  }
+  return new Promise(res => new Dialog({
+    title: "Confirm", content,
+    buttons: {
+      yes: { label: "Yes", callback: () => res(true) },
+      no:  { label: "No",  callback: () => res(false) },
+    },
+    default: "no", close: () => res(false),
+  }).render(true));
+}
+
+const SCHEDULE_ENTRIES = [
+  "666-07-02 06:33 - IMV GRASSHOPPER    - RESUPPLY - DOCKING BAY 2 - DOCK",
+  "666-06-04 08:34 - RSV THE HERACLES   - RESEARCH - DOCKING BAY 1 - DOCK",
+  "666-06-02 12:23 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DEPART",
+  "666-06-01 16:04 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DOCK",
+  "666-05-02 08:32 - MV VASQUEZ XV      - PICKUP   - DOCKING BAY 1 - DEPART",
+  "666-05-01 06:02 - MV VASQUEZ XV      - PICKUP   - DOCKING BAY 1 - DOCK",
+  "666-04-02 13:02 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DEPART",
+  "666-04-01 15:54 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DOCK",
+  "666-06-02 08:33 - MV VAZQUEZ XV      - PICKUP   - DOCKING BAY 1 - DEPART",
+  "666-06-01 06:04 - MV VAZQUEZ XV      - PICKUP   - DOCKING BAY 1 - DOCK",
+];
+const SCHEDULE_PAGE_SIZE = 10;
+
+const COMMS_SHIPS = ["RSV THE HERACLES", "IMV GRASSHOPPER"];
+
 const YPS14_SCREENS = {
   main: {
     title: "YPSILON 14 CONTROL TERMINAL",
@@ -530,41 +598,28 @@ const YPS14_SCREENS = {
   schedule: {
     title: "SCHEDULE",
     back: "main",
-    secret: "Replace 'IMV GRASSHOPPER' with your players' ship. If players go back further in the logs, there's just more of the MV Vasquez XV and CTV Horn ov Plenty alternating each month. Reset astral calendar 666 to campaign calendar.",
-    lines: [
-      { type: "text", label: "666-07-02 06:33 - IMV GRASSHOPPER    - RESUPPLY - DOCKING BAY 2 - DOCK"  },
-      { type: "text", label: "666-06-04 08:34 - RSV THE HERACLES   - RESEARCH - DOCKING BAY 1 - DOCK"  },
-      { type: "text", label: "666-06-02 12:23 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DEPART"},
-      { type: "text", label: "666-06-01 16:04 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DOCK"  },
-      { type: "text", label: "666-05-02 08:32 - MV VASQUEZ XV      - PICKUP   - DOCKING BAY 1 - DEPART" },
-      { type: "text", label: "666-05-01 06:02 - MV VASQUEZ XV      - PICKUP   - DOCKING BAY 1 - DOCK"   },
-      { type: "text", label: "666-04-02 13:02 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DEPART"},
-      { type: "text", label: "666-04-01 15:54 - CTV HORN OV PLENTY - RESUPPLY - DOCKING BAY 2 - DOCK"  },
-      { type: "text", label: "666-06-02 08:33 - MV VAZQUEZ XV      - PICKUP   - DOCKING BAY 1 - DEPART" },
-      { type: "text", label: "666-06-01 06:04 - MV VAZQUEZ XV      - PICKUP   - DOCKING BAY 1 - DOCK"   },
-      { type: "text", label: "&gt; MORE" },
-    ],
+    secret: "Replace 'IMV GRASSHOPPER' with your players' ship. If players scroll back further, more of the same two ships alternate each month. Reset astral calendar 666 to your campaign calendar.",
   },
   roster: {
     title: "ROSTER",
     back: "main",
     lines: [
-      { type: "text", label: "01. VERHOEVEN, SONYA     - OVERSEER"          },
-      { type: "text", label: "02. SINGH, ASHRAF        - BREAKER"           },
-      { type: "text", label: "03. DE BEERS, DANA       - HEAD DRILLER"      },
-      { type: "text", label: "04. HUIZINGA, JEROME     - ASST. DRILLER"     },
-      { type: "text", label: "05. TOBIN, ROSA          - MINING ENGINEER"   },
-      { type: "text", label: "06. MIKKELSEN, MICHAEL   - MINING ENGINEER"   },
-      { type: "text", label: "07. KANTARO, KENJI       - LOADER"            },
-      { type: "text", label: "08. OBOWE, MORGAN        - LOADER"            },
-      { type: "text", label: "09. KENBISHI, RIE        - PUTTER"            },
-      { type: "text", label: "10. VACANT"                                   },
+      { type: "text", label: "01. VERHOEVEN, SONYA     - OVERSEER"        },
+      { type: "text", label: "02. SINGH, ASHRAF        - BREAKER"         },
+      { type: "text", label: "03. DE BEERS, DANA       - HEAD DRILLER"    },
+      { type: "text", label: "04. HUIZINGA, JEROME     - ASST. DRILLER"   },
+      { type: "text", label: "05. TOBIN, ROSA          - MINING ENGINEER" },
+      { type: "text", label: "06. MIKKELSEN, MICHAEL   - MINING ENGINEER" },
+      { type: "text", label: "07. KANTARO, KENJI       - LOADER"          },
+      { type: "text", label: "08. OBOWE, MORGAN        - LOADER"          },
+      { type: "text", label: "09. KENBISHI, RIE        - PUTTER"          },
+      { type: "text", label: "10. VACANT"                                 },
     ],
   },
   controls: {
     title: "CONTROLS",
     back: "main",
-    secret: "The [A] indicates 'Administrator.' Toggle 'Ypsilon 14: System Unlocked' in Game Settings once players obtain Sonya's keycard or hack the terminal.",
+    secret: "The [A] indicates 'Administrator.' SYSTEM [A] automatically shows ACCESS GRANTED when any player character has 'Sonya\\'s Key Card' in their inventory, or when 'Ypsilon 14: System Unlocked' is enabled in Game Settings (for hacking).",
     lines: [
       { type: "nav", screen: "airlocks",    label: "AIRLOCKS"   },
       { type: "nav", screen: "showers",     label: "SHOWERS"    },
@@ -574,29 +629,17 @@ const YPS14_SCREENS = {
   airlocks: {
     title: "AIRLOCKS",
     back: "controls",
-    secret: "The airlocks must be closed manually before they can be locked.",
-    lines: [
-      { type: "text", label: "DOCKING BAY 1 [&gt; LOCKED]"   },
-      { type: "text", label: "DOCKING BAY 2 [&gt; UNLOCKED]" },
-      { type: "text", label: "MINESHAFT     [&gt; UNLOCKED]" },
-    ],
+    secret: "The airlocks must be closed manually before they can be locked remotely. Clicking toggles the lock state and posts to Chat Messages.",
   },
   showers: {
     title: "SHOWERS",
     back: "controls",
-    secret: "Shower 5 is broken and can't be turned on.",
-    lines: [
-      { type: "text", label: "SHOWER 1 [&gt; OFF]" },
-      { type: "text", label: "SHOWER 2 [&gt; OFF]" },
-      { type: "text", label: "SHOWER 3 [&gt; OFF]" },
-      { type: "text", label: "SHOWER 4 [&gt; OFF]" },
-      { type: "text", label: "SHOWER 5 [&gt; OFF]" },
-    ],
+    secret: "Shower 5 is broken — it will not respond. Clicking any other shower posts to Chat Messages.",
   },
   system_locked: {
     title: "SYSTEM",
     back: "controls",
-    secret: "Players don't have Sonya's keycard. Toggle 'Ypsilon 14: System Unlocked' in Game Settings once they obtain it or hack the terminal.",
+    secret: "No player character has 'Sonya\\'s Key Card'. Once they obtain it the system screen automatically shows ACCESS GRANTED. Alternatively, enable 'Ypsilon 14: System Unlocked' in Game Settings for a hacking scenario.",
     lines: [
       { type: "text", label: "[ACCESS DENIED. ADMIN KEYCARD REQUIRED.]" },
     ],
@@ -604,45 +647,34 @@ const YPS14_SCREENS = {
   system_granted: {
     title: "SYSTEM",
     back: "controls",
-    secret: "Players have Sonya's keycard or hacked the terminal.",
-    lines: [
-      { type: "text", label: "[ACCESS GRANTED. WELCOME, SONYA.]"  },
-      { type: "nav",  screen: "life_support", label: "LIFE SUPPORT" },
-      { type: "nav",  screen: "scuttle",      label: "SCUTTLE"      },
-    ],
+    secret: "A player character has 'Sonya\\'s Key Card', or 'Ypsilon 14: System Unlocked' is enabled in Game Settings.",
   },
   life_support: {
     title: "LIFE SUPPORT",
     back: "system_granted",
-    secret: "This won't help much — the monster doesn't need oxygen.",
-    lines: [
-      { type: "text", label: "LIFE SUPPORT [&gt; ON]" },
-    ],
+    secret: "This won't help much — the creature doesn't need oxygen. Clicking toggles life support and posts to Chat Messages.",
   },
   scuttle: {
     title: "SCUTTLE",
     back: "system_granted",
-    lines: [
-      { type: "text", label: "[WARNING: THIS WILL INITIATE A 10-MINUTE STATION SELF-DESTRUCT SEQUENCE." },
-      { type: "text", label: "TYPE 'SCUTTLE' TO INITIATE. SEQUENCE IS IRREVERSIBLE AFTER 5 MINUTES.]"  },
-    ],
+    secret: "Initiating requires a confirmation click and posts a warning to Chat Messages. Can be aborted by clicking again.",
   },
   comms: {
     title: "COMMS",
     back: "main",
-    secret: "Replace 'IMV GRASSHOPPER' with your players' ship. If any other ships are nearby, add them.",
-    lines: [
-      { type: "text", label: "SCANNING FOR NEARBY SHIPS..."   },
-      { type: "text", label: "&gt; HAIL RSV THE HERACLES"     },
-      { type: "text", label: "&gt; HAIL IMV GRASSHOPPER"       },
-    ],
+    secret: "Replace 'IMV GRASSHOPPER' with your players' ship name. Add more ships to COMMS_SHIPS in the script if needed. Clicking a ship posts a hail to Chat Messages.",
   },
 };
 
-function _buildYps14Html(screenKey) {
+const _YPS14_NAV    = "cursor:pointer;padding:2px 0;user-select:none";
+const _YPS14_TEXT   = "padding:2px 0";
+const _YPS14_TOGGLE = "cursor:pointer;padding:2px 0;user-select:none";
+
+function _buildYps14Html(screenKey, { schedulePage = 0 } = {}) {
   const screen = YPS14_SCREENS[screenKey];
   if (!screen) return `<div style="color:red;padding:16px">Unknown screen: ${screenKey}</div>`;
-  const isGM = game.user.isGM;
+  const isGM  = game.user.isGM;
+  const state = _getYps14State();
   const parts = [];
 
   if (isGM && screen.secret) {
@@ -655,20 +687,71 @@ function _buildYps14Html(screenKey) {
     parts.push(`<img src="${screen.image}" style="max-width:100%;display:block;margin-bottom:10px">`);
   }
 
-  for (const line of screen.lines ?? []) {
-    if (line.type === "nav") {
-      let target = line.screen;
-      if (target === "system_auto") {
-        target = game.settings.get(MODULE_ID, "yps14SystemUnlocked") ? "system_granted" : "system_locked";
-      }
-      parts.push(`<div class="yps14-nav" data-screen="${target}" style="cursor:pointer;padding:2px 0;user-select:none">&gt; ${line.label}</div>`);
+  // Dynamic screen content
+  if (screenKey === "schedule") {
+    const start = schedulePage * SCHEDULE_PAGE_SIZE;
+    const end   = start + SCHEDULE_PAGE_SIZE;
+    if (schedulePage > 0) {
+      parts.push(`<div class="yps14-page" data-dir="-1" style="${_YPS14_NAV}">&lt; LESS</div>`);
+    }
+    for (const entry of SCHEDULE_ENTRIES.slice(start, end)) {
+      parts.push(`<div style="${_YPS14_TEXT}">${entry}</div>`);
+    }
+    if (end < SCHEDULE_ENTRIES.length) {
+      parts.push(`<div class="yps14-page" data-dir="1" style="${_YPS14_NAV}">&gt; MORE</div>`);
+    }
+  } else if (screenKey === "airlocks") {
+    const locks = [
+      { key: "bay1",      label: "DOCKING BAY 1" },
+      { key: "bay2",      label: "DOCKING BAY 2" },
+      { key: "mineshaft", label: "MINESHAFT    " },
+    ];
+    for (const lock of locks) {
+      const status = state.airlocks[lock.key] ? "LOCKED" : "UNLOCKED";
+      parts.push(`<div class="yps14-toggle" data-toggle="${lock.key}" style="${_YPS14_TOGGLE}">${lock.label} [&gt; ${status}]</div>`);
+    }
+  } else if (screenKey === "showers") {
+    for (let i = 0; i < 5; i++) {
+      const status = state.showers[i] ? "ON" : "OFF";
+      parts.push(`<div class="yps14-toggle" data-toggle="shower${i + 1}" style="${_YPS14_TOGGLE}">SHOWER ${i + 1} [&gt; ${status}]</div>`);
+    }
+  } else if (screenKey === "system_granted") {
+    parts.push(`<div style="${_YPS14_TEXT}">[ACCESS GRANTED. WELCOME, SONYA.]</div>`);
+    parts.push(`<div class="yps14-nav" data-screen="life_support" style="${_YPS14_NAV}">&gt; LIFE SUPPORT</div>`);
+    parts.push(`<div class="yps14-nav" data-screen="scuttle"      style="${_YPS14_NAV}">&gt; SCUTTLE</div>`);
+  } else if (screenKey === "life_support") {
+    const status = state.lifeSupport ? "ON" : "OFF";
+    parts.push(`<div class="yps14-toggle" data-toggle="lifeSupport" style="${_YPS14_TOGGLE}">LIFE SUPPORT [&gt; ${status}]</div>`);
+  } else if (screenKey === "scuttle") {
+    if (!state.scuttle) {
+      parts.push(`<div style="${_YPS14_TEXT}">[WARNING: THIS WILL INITIATE A 10-MINUTE STATION SELF-DESTRUCT SEQUENCE.]</div>`);
+      parts.push(`<div class="yps14-toggle" data-toggle="scuttle" style="${_YPS14_TOGGLE};color:#ff6644">&gt; INITIATE SCUTTLE SEQUENCE</div>`);
     } else {
-      parts.push(`<div style="padding:2px 0">${line.label}</div>`);
+      parts.push(`<div style="${_YPS14_TEXT};color:#ff6644">[SCUTTLE SEQUENCE INITIATED. SELF-DESTRUCT IN 10 MINUTES.]</div>`);
+      parts.push(`<div class="yps14-toggle" data-toggle="scuttle" style="${_YPS14_TOGGLE}">&gt; ABORT SCUTTLE SEQUENCE</div>`);
+    }
+  } else if (screenKey === "comms") {
+    parts.push(`<div style="${_YPS14_TEXT}">SCANNING FOR NEARBY SHIPS...</div>`);
+    for (const ship of COMMS_SHIPS) {
+      parts.push(`<div class="yps14-hail" data-ship="${ship}" style="${_YPS14_NAV}">&gt; HAIL ${ship}</div>`);
+    }
+  } else {
+    // Static screens: render lines declared in YPS14_SCREENS
+    for (const line of screen.lines ?? []) {
+      if (line.type === "nav") {
+        let target = line.screen;
+        if (target === "system_auto") {
+          target = _yps14SystemUnlocked() ? "system_granted" : "system_locked";
+        }
+        parts.push(`<div class="yps14-nav" data-screen="${target}" style="${_YPS14_NAV}">&gt; ${line.label}</div>`);
+      } else {
+        parts.push(`<div style="${_YPS14_TEXT}">${line.label}</div>`);
+      }
     }
   }
 
   if (screen.back) {
-    parts.push(`<div class="yps14-back" data-screen="${screen.back}" style="cursor:pointer;margin-top:12px;padding:2px 0;user-select:none">&lt; BACK</div>`);
+    parts.push(`<div class="yps14-back" data-screen="${screen.back}" style="${_YPS14_NAV};margin-top:12px">&lt; BACK</div>`);
   }
 
   if (isGM) {
@@ -694,28 +777,77 @@ class Yps14TerminalApp extends Application {
   constructor(screenKey = "main", options = {}) {
     super(options);
     this._screen = screenKey;
+    this._schedulePage = 0;
   }
 
   get title() { return "Ypsilon 14 Terminal"; }
 
   async _renderInner() {
-    return $(_buildYps14Html(this._screen));
+    return $(_buildYps14Html(this._screen, { schedulePage: this._schedulePage }));
   }
 
   activateListeners(html) {
     super.activateListeners(html);
-    html.on("click", ".yps14-nav",  ev => this._navigate(ev.currentTarget.dataset.screen));
-    html.on("click", ".yps14-back", ev => this._navigate(ev.currentTarget.dataset.screen));
+    html.on("click", ".yps14-nav",       ev => this._navigate(ev.currentTarget.dataset.screen));
+    html.on("click", ".yps14-back",      ev => this._navigate(ev.currentTarget.dataset.screen));
+    html.on("click", ".yps14-page",      ev => { this._schedulePage += parseInt(ev.currentTarget.dataset.dir); this.render(true); });
+    html.on("click", ".yps14-toggle",    ev => this._handleToggle(ev.currentTarget.dataset.toggle));
+    html.on("click", ".yps14-hail",      ev => this._handleHail(ev.currentTarget.dataset.ship));
     html.on("click", ".yps14-broadcast", () => {
       game.socket.emit(`module.${MODULE_ID}`, { action: "yps14:open", screen: this._screen });
-      ui.notifications.info(`Ypsilon 14 | Broadcasting: ${YPS14_SCREENS[this._screen]?.title}`);
+      ui.notifications.info(`Ypsilon 14 | Broadcasting: ${YPS14_SCREENS[this._screen]?.title ?? this._screen}`);
     });
   }
 
   _navigate(screenKey) {
     if (!YPS14_SCREENS[screenKey]) return;
+    if (screenKey !== "schedule") this._schedulePage = 0;
     this._screen = screenKey;
     this.render(true);
+  }
+
+  async _handleToggle(key) {
+    const state = _getYps14State();
+
+    if (key === "bay1" || key === "bay2" || key === "mineshaft") {
+      state.airlocks[key] = !state.airlocks[key];
+      const names  = { bay1: "DOCKING BAY 1", bay2: "DOCKING BAY 2", mineshaft: "MINESHAFT" };
+      const status = state.airlocks[key] ? "LOCKED" : "UNLOCKED";
+      _yps14ChatMsg(`${names[key]}: ${status}`);
+    } else if (key.startsWith("shower")) {
+      const idx = parseInt(key.replace("shower", "")) - 1;
+      if (idx === 4) {
+        _yps14ChatMsg("SHOWER 5: NOT RESPONDING. OUT OF ORDER.");
+        return;
+      }
+      state.showers[idx] = !state.showers[idx];
+      const status = state.showers[idx] ? "ON" : "OFF";
+      _yps14ChatMsg(`SHOWER ${idx + 1}: ${status}`);
+    } else if (key === "lifeSupport") {
+      state.lifeSupport = !state.lifeSupport;
+      _yps14ChatMsg(state.lifeSupport
+        ? "LIFE SUPPORT: RESTORED. Station atmosphere within survivable parameters."
+        : "LIFE SUPPORT: DISABLED. Station atmosphere will become non-survivable in approximately 4 hours.");
+    } else if (key === "scuttle") {
+      if (!state.scuttle) {
+        const ok = await _yps14Confirm("<p>Initiate 10-minute station self-destruct sequence?</p>");
+        if (!ok) return;
+        state.scuttle = true;
+        _yps14ChatMsg("&#9888; SCUTTLE SEQUENCE INITIATED. STATION SELF-DESTRUCT IN 10 MINUTES. SEQUENCE IS IRREVERSIBLE AFTER 5 MINUTES.");
+      } else {
+        state.scuttle = false;
+        _yps14ChatMsg("SCUTTLE SEQUENCE ABORTED.");
+      }
+    } else {
+      return;
+    }
+
+    await _setYps14State(state);
+    this.render(true);
+  }
+
+  _handleHail(ship) {
+    _yps14ChatMsg(`Hailing ${ship}...`);
   }
 }
 
