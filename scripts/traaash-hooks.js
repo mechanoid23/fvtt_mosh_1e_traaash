@@ -650,7 +650,7 @@ const YPS14_SCREENS = {
     lines: [
       { type: "nav", screen: "airlocks",    label: "AIRLOCKS"   },
       { type: "nav", screen: "showers",     label: "SHOWERS"    },
-      { type: "nav", screen: "system_auto", label: "SYSTEM [A]" },
+      { type: "nav", screen: "system_auto", label: "SYSTEM [A]", gmOnly: true },
     ],
   },
   airlocks: {
@@ -767,11 +767,15 @@ function _buildYps14Html(screenKey, { schedulePage = 0 } = {}) {
     // Static screens: render lines declared in YPS14_SCREENS
     for (const line of screen.lines ?? []) {
       if (line.type === "nav") {
-        let target = line.screen;
-        if (target === "system_auto") {
-          target = _yps14SystemUnlocked() ? "system_granted" : "system_locked";
+        if (line.gmOnly && !isGM) {
+          parts.push(`<div style="${_YPS14_TEXT}">${line.label}</div>`);
+        } else {
+          let target = line.screen;
+          if (target === "system_auto") {
+            target = _yps14SystemUnlocked() ? "system_granted" : "system_locked";
+          }
+          parts.push(`<div class="yps14-nav" data-screen="${target}" style="${_YPS14_NAV}">&gt; ${line.label}</div>`);
         }
-        parts.push(`<div class="yps14-nav" data-screen="${target}" style="${_YPS14_NAV}">&gt; ${line.label}</div>`);
       } else {
         parts.push(`<div style="${_YPS14_TEXT}">${line.label}</div>`);
       }
