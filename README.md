@@ -47,6 +47,23 @@ Each player rolls 1d10 at character creation to find out why they're in the corp
 - **Roll: The Company macro**: select a token and run the macro to roll for any character at any time
 - **Compendium tables**: The Company and Jubilee tables available for manual use in Foundry
 
+## Android Subtype
+
+Source: [https://www.traaa.sh/3-androids-for-mothership](https://www.traaa.sh/3-androids-for-mothership)
+
+Android players choose a subtype during character creation that defines the nature of their mechanical existence:
+
+| Subtype | Description |
+|---|---|
+| **Bioroid** | Biological constructs built instead of born. Function as humans — cryo-compatible, detectable only via careful testing or a critical scanner result. Standard Android stats. |
+| **Synthetic** | Fully mechanical beings with synthetic skin and milky white internal fluids. Cannot be healed normally; immune to poison and disease; vulnerable to EMPs. Must charge 6 hours weekly or shut down. Rolls the **Android Panic Table**. |
+| **Cyberized Human** | A human consciousness transferred into a robotic body. Choose a base class (PSG core: Marine, Scientist, Teamster — or any non-robotic RWC class) for saves and skills; stats are adjusted to reflect that class instead of standard Android. Uses Synthetic body rules. Rolls the **Android Panic Table**. |
+
+- Auto-rolls a roleplay suggestion table for the chosen subtype and posts the result to chat
+- Subtype description, rules, and roleplay feature display in the character sheet Bio tab
+- Synthetic and Cyberized Human characters get a **Roll Android Panic** button in the Bio tab
+- **Android Panic Table** (2d10, 19 results, range 2–30) is available in the *Traaa.sh Tables (1e)* compendium for manual use
+
 ## Pet Skill Tree
 
 A tiered skill tree for pet companions, from [traaa.sh](https://www.traaa.sh). All 17 skills are available in the **Pet Skill Tree (1e)** compendium pack.
@@ -87,6 +104,7 @@ In Foundry: **Game Settings → Configure Settings → Module Settings → Mothe
 | Setting | Default | Wired | Description |
 |---|---|---|---|
 | The Company — Character Creation | On | ✓ fully | Suppresses the auto-prompt and Bio tab section when off |
+| Android Subtype — Character Creation | On | ✓ fully | Suppresses the subtype dialog and Bio tab block when off |
 | Pet Skill Tree | On | ✓ fully | Suppresses the in-sheet skill tracker; compendium pack is always present |
 
 ## Compatibility

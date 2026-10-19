@@ -1182,6 +1182,10 @@ function _buildAndroidSubtypeSection(actor, subtype) {
   const featureHtml = feature
     ? `<p style="margin:6px 0 0;font-size:0.88em;font-style:italic">Roleplay feature: ${feature}</p>`
     : "";
+  const useAndroidPanic = subtype === "synthetic" || subtype === "cyberized";
+  const panicBtnHtml = useAndroidPanic
+    ? `<div style="margin-top:8px"><button type="button" class="traaash-android-panic-roll" style="font-size:0.8em;padding:2px 10px">Roll Android Panic</button></div>`
+    : "";
   return $(`<div class="traaash-android-subtype-section" style="border:1px solid ${borderColor};border-radius:3px;padding:8px 10px;margin-bottom:12px">
     <div style="margin-bottom:4px">
       <span style="font-weight:bold;text-transform:uppercase;letter-spacing:1px;font-size:0.78em">Android Subtype — ${subtypeLabel}</span>
@@ -1189,6 +1193,7 @@ function _buildAndroidSubtypeSection(actor, subtype) {
     ${desc ? `<p style="margin:0 0 6px;font-size:0.82em;color:#555;font-style:italic">${desc}</p>` : ""}
     <ul style="margin:0 0 2px;padding-left:16px;font-size:0.82em;color:#555;line-height:1.5">${rulesHtml}</ul>
     ${featureHtml}
+    ${panicBtnHtml}
   </div>`);
 }
 
@@ -1203,7 +1208,19 @@ Hooks.on("renderActorSheet", (app, html, _data) => {
   // Android Subtype block — prepend first so Company ends up above it
   if (game.settings.get(MODULE_ID, "enableAndroidSubtype")) {
     const subtype = actor.getFlag(MODULE_ID, "androidSubtype");
-    if (subtype) $bioTab.prepend(_buildAndroidSubtypeSection(actor, subtype));
+    if (subtype) {
+      const $subtypeSection = _buildAndroidSubtypeSection(actor, subtype);
+      $subtypeSection.find(".traaash-android-panic-roll").on("click", async () => {
+        try {
+          const table = await fromUuid(`Compendium.${MODULE_ID}.rolltables_traaash_1e.RollTable.AndroidPanic1e01`);
+          if (table) await table.draw({ displayChat: true });
+        } catch(e) {
+          console.error(`${MODULE_ID} | Android Panic Table roll error:`, e);
+          ui.notifications.error("Could not roll Android Panic Table.");
+        }
+      });
+      $bioTab.prepend($subtypeSection);
+    }
   }
 
   // The Company block — prepend last so it appears at the very top
