@@ -20,6 +20,7 @@ NeDB compendium packs — one JSON document per line in `.db` files under `packs
 |---|---|
 | The Company | `CompanyMotiv1e01` |
 | Jubilee — Debt Source | `JubileeDebtD10X1` |
+| Android Panic Table | `AndroidPanic1e01` |
 
 ## Macro IDs
 
