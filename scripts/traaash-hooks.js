@@ -983,27 +983,18 @@ const _ANDROID_SKILLS_GRANTED = [
   "Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.JPeKPvButXFey4Xa",
 ];
 
-// All non-robotic classes available as Cyberized Human base class.
+// Non-robotic classes available as Cyberized Human base class.
+// PSG core (Marine, Scientist, Teamster) + all non-robotic RWC classes.
 // adj values are base_adjustment from their respective compendium items.
 const CYBERIZED_BASE_CLASSES = [
-  { name: "Marine",          source: "psg", id: "hEoRZtpDLnDcDM55", adj: { strength:0,   speed:0,   intellect:0,   combat:10, sanity:0,   fear:20, body:10, max_wounds:1 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.WMleBDM9wAHUeoMF","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.41CEH7dOvmTaywpD"] },
-  { name: "Scientist",       source: "psg", id: "Tff5sFWOKlqmFopi", adj: { strength:0,   speed:0,   intellect:10,  combat:0,  sanity:30,  fear:0,  body:0,  max_wounds:0 }, skills: [] },
-  { name: "Teamster",        source: "psg", id: "qDJrZCKDwf1A5H86", adj: { strength:5,   speed:5,   intellect:5,   combat:5,  sanity:10,  fear:10, body:10, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.e1rHSbZrEDFkjizS","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.erO6jxrvrF94Fl3g"] },
-  { name: "Suit",            source: "psg", id: "NbrnTP3fAbnFbmOH", adj: { strength:0,   speed:5,   intellect:5,   combat:0,  sanity:20,  fear:10, body:15, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.Lv4musH6UKdLnkFB"] },
-  { name: "Witness",         source: "psg", id: "FZltfWHmlfmIBRe0", adj: { strength:0,   speed:5,   intellect:0,   combat:0,  sanity:25,  fear:15, body:10, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.41CEH7dOvmTaywpD","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.9vkt2RBybSeuHoQQ"] },
-  { name: "Field Biologist", source: "psg", id: "iRg5PP5omM35XLwW", adj: { strength:0,   speed:0,   intellect:5,   combat:0,  sanity:25,  fear:15, body:10, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.DRrQqYVtBTo0n8ck","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.Ne7SnktJvl8bFQ3n"] },
-  { name: "Void Monk",       source: "psg", id: "isk1lzuBrTkS9Png", adj: { strength:10,  speed:0,   intellect:0,   combat:0,  sanity:25,  fear:15, body:10, max_wounds:0 }, skills: [] },
-  { name: "Zoologist",       source: "psg", id: "Y1wrQxtAKJ37OWUl", adj: { strength:5,   speed:0,   intellect:5,   combat:0,  sanity:15,  fear:25, body:10, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.DRrQqYVtBTo0n8ck","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.YqTFuG2lBWV4HlRC"] },
-  { name: "Bounty Hunter",   source: "psg", id: "iRiQKguCMtKiSULf", adj: { strength:5,   speed:0,   intellect:0,   combat:5,  sanity:10,  fear:15, body:15, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.YqTFuG2lBWV4HlRC","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.30dSaZxJc40A9V5r","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.vNa4htmpXawfccpN","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.VnvtGGibZhvYgfwy"] },
-  { name: "Void Urchin",     source: "psg", id: "H8VN4N2mY2isO7g1", adj: { strength:-10, speed:-10, intellect:-10, combat:-10,sanity:20,  fear:20, body:20, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.8bncFeOgoLIResHT"] },
-  { name: "Convict",         source: "psg", id: "1cuppyF0tv2cabWV", adj: { strength:0,   speed:10,  intellect:0,   combat:0,  sanity:10,  fear:30, body:15, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.9vkt2RBybSeuHoQQ"] },
-  { name: "Hybrid",          source: "psg", id: "sYEvQ2NlmrhNJdas", adj: { strength:15,  speed:15,  intellect:0,   combat:0,  sanity:5,   fear:15, body:15, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.30dSaZxJc40A9V5r","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.41CEH7dOvmTaywpD"] },
-  { name: "Weaver",          source: "psg", id: "mcTmbD9n0Ha4Z7Yg", adj: { strength:0,   speed:0,   intellect:15,  combat:0,  sanity:25,  fear:25, body:5,  max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.0S9nEmPykEYGLhYw","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.8y8KM5kWuwDhDh1B"] },
-  { name: "Psychic",         source: "rwc", id: "MviKBYaJbFyxdrhp", adj: { strength:0,   speed:0,   intellect:20,  combat:0,  sanity:-10, fear:30, body:0,  max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.Lv4musH6UKdLnkFB","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.PGTfaLeKzqiNZhMk"] },
-  { name: "Emissary",        source: "rwc", id: "Vq0x9hIhRkw2pyhS", adj: { strength:0,   speed:0,   intellect:0,   combat:0,  sanity:30,  fear:30, body:30, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.xvdvk1oi8J9XLwtY","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.ktwDDlbvtcXAIsK8"] },
-  { name: "Criminal",        source: "rwc", id: "MG5dRVFYmDFXCszO", adj: { strength:0,   speed:0,   intellect:0,   combat:5,  sanity:0,   fear:0,  body:10, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.9vkt2RBybSeuHoQQ","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.pxTk3Y9SDe0lU85j","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.NBA4JiYlWEnFCS3U"] },
-  { name: "Ranger",          source: "rwc", id: "DuXWShCsmRs2OgYi", adj: { strength:0,   speed:10,  intellect:5,   combat:0,  sanity:0,   fear:5,  body:5,  max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.Ne7SnktJvl8bFQ3n","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.8bncFeOgoLIResHT","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.YqTFuG2lBWV4HlRC"] },
-  { name: "Retiree",         source: "rwc", id: "KyC8LIq6Ps7q66Yr", adj: { strength:0,   speed:-15, intellect:0,   combat:0,  sanity:0,   fear:30, body:-15,max_wounds:0 }, skills: [] },
+  { name: "Marine",    source: "psg", id: "hEoRZtpDLnDcDM55", adj: { strength:0, speed:0,   intellect:0,  combat:10, sanity:0,   fear:20, body:10, max_wounds:1 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.WMleBDM9wAHUeoMF","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.41CEH7dOvmTaywpD"] },
+  { name: "Scientist", source: "psg", id: "Tff5sFWOKlqmFopi", adj: { strength:0, speed:0,   intellect:10, combat:0,  sanity:30,  fear:0,  body:0,  max_wounds:0 }, skills: [] },
+  { name: "Teamster",  source: "psg", id: "qDJrZCKDwf1A5H86", adj: { strength:5, speed:5,   intellect:5,  combat:5,  sanity:10,  fear:10, body:10, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.e1rHSbZrEDFkjizS","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.erO6jxrvrF94Fl3g"] },
+  { name: "Psychic",   source: "rwc", id: "MviKBYaJbFyxdrhp", adj: { strength:0, speed:0,   intellect:20, combat:0,  sanity:-10, fear:30, body:0,  max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.Lv4musH6UKdLnkFB","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.PGTfaLeKzqiNZhMk"] },
+  { name: "Emissary",  source: "rwc", id: "Vq0x9hIhRkw2pyhS", adj: { strength:0, speed:0,   intellect:0,  combat:0,  sanity:30,  fear:30, body:30, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.xvdvk1oi8J9XLwtY","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.ktwDDlbvtcXAIsK8"] },
+  { name: "Criminal",  source: "rwc", id: "MG5dRVFYmDFXCszO", adj: { strength:0, speed:0,   intellect:0,  combat:5,  sanity:0,   fear:0,  body:10, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.9vkt2RBybSeuHoQQ","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.pxTk3Y9SDe0lU85j","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.NBA4JiYlWEnFCS3U"] },
+  { name: "Ranger",    source: "rwc", id: "DuXWShCsmRs2OgYi", adj: { strength:0, speed:10,  intellect:5,  combat:0,  sanity:0,   fear:5,  body:5,  max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.Ne7SnktJvl8bFQ3n","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.8bncFeOgoLIResHT","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.YqTFuG2lBWV4HlRC"] },
+  { name: "Retiree",   source: "rwc", id: "KyC8LIq6Ps7q66Yr", adj: { strength:0, speed:-15, intellect:0,  combat:0,  sanity:0,   fear:30, body:-15,max_wounds:0 }, skills: [] },
 ];
 
 async function _showAndroidSubtypeDialog() {
@@ -1011,10 +1002,19 @@ async function _showAndroidSubtypeDialog() {
     new Dialog({
       title: "Android Subtype",
       content: `<div style="font-size:0.88em;line-height:1.5">
-        <p style="margin:0 0 8px">Choose your Android subtype:</p>
-        <div style="margin-bottom:6px"><strong>Bioroid</strong> — A biological construct, built instead of born. Functions as human but may have a non-human feature. (Standard Android stats)</div>
-        <div style="margin-bottom:6px"><strong>Synthetic</strong> — A mechanical being with synthetic skin. Doesn't sleep, breathe, or age. Immune to poison and disease. Vulnerable to EMPs. (Standard Android stats)</div>
-        <div style="margin-bottom:8px"><strong>Cyberized Human</strong> — A human consciousness transferred to a robotic body. Choose a base class for saves and skills. Uses Synthetic body rules + Android Fear rules.</div>
+        <p style="margin:0 0 10px">Choose your Android subtype:</p>
+        <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(0,0,0,0.1)">
+          <div style="font-weight:bold;margin-bottom:3px">Bioroid</div>
+          <div>Bioroids aren't exactly robots, but they're not fully human, either. They're biological constructs, built instead of born, and designed for specific purposes. Many kinds of bioroid are quite difficult to distinguish from humans without careful testing. Think Replicants from <em>Blade Runner</em>, or Cylon "skinjobs" from <em>Battlestar Galactica</em>.</div>
+        </div>
+        <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(0,0,0,0.1)">
+          <div style="font-weight:bold;margin-bottom:3px">Synthetic</div>
+          <div>Synthetics are completely mechanical beings, designed to look and act like the humans they work alongside (to varying degrees of success). They usually have a synthetic skin that covers their metal and plastic interiors. Their internal fluids (if any) are milky white. Think Ash from <em>Alien</em> or the T-800 from <em>Terminator</em>.</div>
+        </div>
+        <div style="margin-bottom:4px">
+          <div style="font-weight:bold;margin-bottom:3px">Cyberized Human</div>
+          <div>The Cyberized Human was born human but their consciousness was at some point transferred to a cybernetic brain and encased in a robotic body. It's not unheard of for cyber-brains to be transferred between bodies, but this is a complicated and time-consuming procedure. Think Major Kusanagi or Batou from <em>Ghost in the Shell</em>.</div>
+        </div>
       </div>`,
       buttons: {
         bioroid:   { label: "Bioroid",         callback: () => resolve("bioroid")   },
@@ -1154,6 +1154,11 @@ function _buildAndroidSubtypeSection(actor, subtype) {
   const baseClass = actor.getFlag(MODULE_ID, "androidBaseClass") ?? null;
   const COLORS = { bioroid: "rgba(26,74,42,0.4)", synthetic: "rgba(26,42,74,0.4)", cyberized: "rgba(58,26,74,0.4)" };
   const borderColor = COLORS[subtype] ?? "rgba(40,40,40,0.35)";
+  const DESCRIPTIONS = {
+    bioroid:   "Bioroids aren't exactly robots, but they're not fully human, either. They're biological constructs, built instead of born, and designed for specific purposes. Many kinds of bioroid are quite difficult to distinguish from humans without careful testing.",
+    synthetic: "Synthetics are completely mechanical beings, designed to look and act like the humans they work alongside (to varying degrees of success). They usually have a synthetic skin that covers their metal and plastic interiors. Their internal fluids (if any) are milky white.",
+    cyberized: "The Cyberized Human was born human but their consciousness was at some point transferred to a cybernetic brain and encased in a robotic body. It's not unheard of for cyber-brains to be transferred between bodies, but this is a complicated and time-consuming procedure.",
+  };
   const RULES = {
     bioroid: [
       "Biological: Functions as a human, including cryo for hyperspace jumps.",
@@ -1171,6 +1176,7 @@ function _buildAndroidSubtypeSection(actor, subtype) {
       "Cyberbrain Transfer: Cyberbrain can be removed and transferred to another compatible body. Takes 1d10 hours.",
     ],
   };
+  const desc = DESCRIPTIONS[subtype] ?? "";
   const rules = RULES[subtype] ?? [];
   const rulesHtml = rules.map(r => `<li style="margin-bottom:2px">${r}</li>`).join("");
   const featureHtml = feature
@@ -1180,6 +1186,7 @@ function _buildAndroidSubtypeSection(actor, subtype) {
     <div style="margin-bottom:4px">
       <span style="font-weight:bold;text-transform:uppercase;letter-spacing:1px;font-size:0.78em">Android Subtype — ${subtypeLabel}</span>
     </div>
+    ${desc ? `<p style="margin:0 0 6px;font-size:0.82em;color:#555;font-style:italic">${desc}</p>` : ""}
     <ul style="margin:0 0 2px;padding-left:16px;font-size:0.82em;color:#555;line-height:1.5">${rulesHtml}</ul>
     ${featureHtml}
   </div>`);
