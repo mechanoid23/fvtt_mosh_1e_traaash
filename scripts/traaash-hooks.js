@@ -129,6 +129,15 @@ Hooks.once("init", () => {
     default: true,
   });
 
+  game.settings.register(MODULE_ID, "enableAndroidSubtype", {
+    name: "Android Subtype — Character Creation",
+    hint: "After choosing the Android class, prompt to select a subtype (Bioroid, Synthetic, or Cyberized Human) and roll a roleplay feature. Displays details in the character sheet Bio tab.",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: true,
+  });
+
   game.settings.register(MODULE_ID, "yps14SystemAccess", {
     name: "Ypsilon 14: System [A] Access Override",
     hint: "Auto: unlocks when any player character has Sonya's Key Card. Locked: always ACCESS DENIED (overrides keycard). Unlocked: always ACCESS GRANTED (hacking scenarios). Can also be cycled from inside the terminal.",
@@ -200,32 +209,39 @@ Hooks.once("ready", async () => {
 // Tracks actors whose class was just set this session; value is a pending fallback timer ID or null.
 const _pendingCompany = new Map();
 
-function _promptCompany(actor) {
+async function _promptCompany(actor) {
   if (!game.settings.get(MODULE_ID, "enableCompany")) return;
   if (actor.getFlag(MODULE_ID, "company_roll") != null) return;
   console.log(`fvtt_mosh_1e_traaash | prompting The Company roll for ${actor.name}`);
-  confirmCompanyRoll(actor.name)
-    .then(roll => roll ? rollCompanyMotivation(actor) : null)
-    .catch(e => console.error("fvtt_mosh_1e_traaash | The Company dialog error:", e));
+  try {
+    const roll = await confirmCompanyRoll(actor.name);
+    if (roll) await rollCompanyMotivation(actor);
+  } catch(e) {
+    console.error("fvtt_mosh_1e_traaash | The Company dialog error:", e);
+  }
 }
 
-// Mark actor as pending when a class is first assigned.
+// Mark actor as pending when a class is first assigned (Company and/or Android subtype).
 Hooks.on("updateActor", (actor, changes, _options, userId) => {
   if (userId !== game.user.id) return;
   if (actor.type !== "character") return;
-  if (!changes?.system?.class?.value) return;
-  if (actor.getFlag(MODULE_ID, "company_roll") != null) return;
-  if (!game.settings.get(MODULE_ID, "enableCompany")) return;
-  _pendingCompany.set(actor.id, null);
+  const newClass = changes?.system?.class?.value;
+  if (!newClass) return;
+  const needsCompany  = actor.getFlag(MODULE_ID, "company_roll") == null  && game.settings.get(MODULE_ID, "enableCompany");
+  const needsSubtype  = newClass === "Android" && actor.getFlag(MODULE_ID, "androidSubtype") == null && game.settings.get(MODULE_ID, "enableAndroidSubtype");
+  if (needsCompany || needsSubtype) _pendingCompany.set(actor.id, null);
 });
 
 // Primary trigger: MCG v1.0.3+ fires this after Choose Skills confirms.
-// Cancels the fallback timer and prompts immediately.
-Hooks.on("traaash.skillsChosen", (actor) => {
+// Cancels the fallback timer and runs Company → Android subtype sequentially.
+Hooks.on("traaash.skillsChosen", async (actor) => {
   const timer = _pendingCompany.get(actor.id);
   if (timer) clearTimeout(timer);
   _pendingCompany.delete(actor.id);
-  _promptCompany(actor);
+  await _promptCompany(actor);
+  if (game.settings.get(MODULE_ID, "enableAndroidSubtype") && actor.system.class.value === "Android") {
+    await _promptAndroidSubtype(actor);
+  }
 });
 
 // Fallback trigger: watch for skill items being added to a pending actor.
@@ -241,9 +257,13 @@ Hooks.on("createItem", (item, _options, userId) => {
   const existing = _pendingCompany.get(actor.id);
   if (existing) clearTimeout(existing);
 
-  const timer = setTimeout(() => {
+  const timer = setTimeout(async () => {
     _pendingCompany.delete(actor.id);
-    _promptCompany(actor);
+    const freshActor = game.actors.get(actor.id) ?? actor;
+    await _promptCompany(freshActor);
+    if (game.settings.get(MODULE_ID, "enableAndroidSubtype")) {
+      await _promptAndroidSubtype(freshActor);
+    }
   }, 5000);
   _pendingCompany.set(actor.id, timer);
 });
@@ -945,9 +965,227 @@ Hooks.on("renderItemSheet", (app, html, _data) => {
   $body.prepend($section);
 });
 
-Hooks.on("renderActorSheet", (app, html, _data) => {
-  if (!game.settings.get(MODULE_ID, "enableCompany")) return;
+// ---- Android Subtype ----
 
+const ANDROID_SUBTYPE_TABLES = {
+  bioroid:   "AndrSubBioroid01",
+  synthetic: "AndrSubSynthtic1",
+  cyberized: "AndrSubCyberz001",
+};
+
+// Android base_adjustment from fvtt_mosh_1e_psg (ID: zwu8YwLpOFihp7fE)
+const _ANDROID_BASE_ADJ = { strength: 0, speed: 0, intellect: 20, combat: 0, sanity: 0, fear: 60, body: 0, max_wounds: 1 };
+
+// Android base skills_granted (Linguistics, Computers, Mathematics)
+const _ANDROID_SKILLS_GRANTED = [
+  "Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.Lv4musH6UKdLnkFB",
+  "Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.pxTk3Y9SDe0lU85j",
+  "Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.JPeKPvButXFey4Xa",
+];
+
+// All non-robotic classes available as Cyberized Human base class.
+// adj values are base_adjustment from their respective compendium items.
+const CYBERIZED_BASE_CLASSES = [
+  { name: "Marine",          source: "psg", id: "hEoRZtpDLnDcDM55", adj: { strength:0,   speed:0,   intellect:0,   combat:10, sanity:0,   fear:20, body:10, max_wounds:1 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.WMleBDM9wAHUeoMF","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.41CEH7dOvmTaywpD"] },
+  { name: "Scientist",       source: "psg", id: "Tff5sFWOKlqmFopi", adj: { strength:0,   speed:0,   intellect:10,  combat:0,  sanity:30,  fear:0,  body:0,  max_wounds:0 }, skills: [] },
+  { name: "Teamster",        source: "psg", id: "qDJrZCKDwf1A5H86", adj: { strength:5,   speed:5,   intellect:5,   combat:5,  sanity:10,  fear:10, body:10, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.e1rHSbZrEDFkjizS","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.erO6jxrvrF94Fl3g"] },
+  { name: "Suit",            source: "psg", id: "NbrnTP3fAbnFbmOH", adj: { strength:0,   speed:5,   intellect:5,   combat:0,  sanity:20,  fear:10, body:15, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.Lv4musH6UKdLnkFB"] },
+  { name: "Witness",         source: "psg", id: "FZltfWHmlfmIBRe0", adj: { strength:0,   speed:5,   intellect:0,   combat:0,  sanity:25,  fear:15, body:10, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.41CEH7dOvmTaywpD","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.9vkt2RBybSeuHoQQ"] },
+  { name: "Field Biologist", source: "psg", id: "iRg5PP5omM35XLwW", adj: { strength:0,   speed:0,   intellect:5,   combat:0,  sanity:25,  fear:15, body:10, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.DRrQqYVtBTo0n8ck","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.Ne7SnktJvl8bFQ3n"] },
+  { name: "Void Monk",       source: "psg", id: "isk1lzuBrTkS9Png", adj: { strength:10,  speed:0,   intellect:0,   combat:0,  sanity:25,  fear:15, body:10, max_wounds:0 }, skills: [] },
+  { name: "Zoologist",       source: "psg", id: "Y1wrQxtAKJ37OWUl", adj: { strength:5,   speed:0,   intellect:5,   combat:0,  sanity:15,  fear:25, body:10, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.DRrQqYVtBTo0n8ck","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.YqTFuG2lBWV4HlRC"] },
+  { name: "Bounty Hunter",   source: "psg", id: "iRiQKguCMtKiSULf", adj: { strength:5,   speed:0,   intellect:0,   combat:5,  sanity:10,  fear:15, body:15, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.YqTFuG2lBWV4HlRC","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.30dSaZxJc40A9V5r","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.vNa4htmpXawfccpN","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.VnvtGGibZhvYgfwy"] },
+  { name: "Void Urchin",     source: "psg", id: "H8VN4N2mY2isO7g1", adj: { strength:-10, speed:-10, intellect:-10, combat:-10,sanity:20,  fear:20, body:20, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.8bncFeOgoLIResHT"] },
+  { name: "Convict",         source: "psg", id: "1cuppyF0tv2cabWV", adj: { strength:0,   speed:10,  intellect:0,   combat:0,  sanity:10,  fear:30, body:15, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.9vkt2RBybSeuHoQQ"] },
+  { name: "Hybrid",          source: "psg", id: "sYEvQ2NlmrhNJdas", adj: { strength:15,  speed:15,  intellect:0,   combat:0,  sanity:5,   fear:15, body:15, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.30dSaZxJc40A9V5r","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.41CEH7dOvmTaywpD"] },
+  { name: "Weaver",          source: "psg", id: "mcTmbD9n0Ha4Z7Yg", adj: { strength:0,   speed:0,   intellect:15,  combat:0,  sanity:25,  fear:25, body:5,  max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.0S9nEmPykEYGLhYw","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.8y8KM5kWuwDhDh1B"] },
+  { name: "Psychic",         source: "rwc", id: "MviKBYaJbFyxdrhp", adj: { strength:0,   speed:0,   intellect:20,  combat:0,  sanity:-10, fear:30, body:0,  max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.Lv4musH6UKdLnkFB","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.PGTfaLeKzqiNZhMk"] },
+  { name: "Emissary",        source: "rwc", id: "Vq0x9hIhRkw2pyhS", adj: { strength:0,   speed:0,   intellect:0,   combat:0,  sanity:30,  fear:30, body:30, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.xvdvk1oi8J9XLwtY","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.ktwDDlbvtcXAIsK8"] },
+  { name: "Criminal",        source: "rwc", id: "MG5dRVFYmDFXCszO", adj: { strength:0,   speed:0,   intellect:0,   combat:5,  sanity:0,   fear:0,  body:10, max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.9vkt2RBybSeuHoQQ","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.pxTk3Y9SDe0lU85j","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.NBA4JiYlWEnFCS3U"] },
+  { name: "Ranger",          source: "rwc", id: "DuXWShCsmRs2OgYi", adj: { strength:0,   speed:10,  intellect:5,   combat:0,  sanity:0,   fear:5,  body:5,  max_wounds:0 }, skills: ["Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.Ne7SnktJvl8bFQ3n","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.8bncFeOgoLIResHT","Compendium.fvtt_mosh_1e_psg.items_skills_1e.Item.YqTFuG2lBWV4HlRC"] },
+  { name: "Retiree",         source: "rwc", id: "KyC8LIq6Ps7q66Yr", adj: { strength:0,   speed:-15, intellect:0,   combat:0,  sanity:0,   fear:30, body:-15,max_wounds:0 }, skills: [] },
+];
+
+async function _showAndroidSubtypeDialog() {
+  return new Promise(resolve => {
+    new Dialog({
+      title: "Android Subtype",
+      content: `<div style="font-size:0.88em;line-height:1.5">
+        <p style="margin:0 0 8px">Choose your Android subtype:</p>
+        <div style="margin-bottom:6px"><strong>Bioroid</strong> — A biological construct, built instead of born. Functions as human but may have a non-human feature. (Standard Android stats)</div>
+        <div style="margin-bottom:6px"><strong>Synthetic</strong> — A mechanical being with synthetic skin. Doesn't sleep, breathe, or age. Immune to poison and disease. Vulnerable to EMPs. (Standard Android stats)</div>
+        <div style="margin-bottom:8px"><strong>Cyberized Human</strong> — A human consciousness transferred to a robotic body. Choose a base class for saves and skills. Uses Synthetic body rules + Android Fear rules.</div>
+      </div>`,
+      buttons: {
+        bioroid:   { label: "Bioroid",         callback: () => resolve("bioroid")   },
+        synthetic: { label: "Synthetic",       callback: () => resolve("synthetic") },
+        cyberized: { label: "Cyberized Human", callback: () => resolve("cyberized") },
+      },
+      close: () => resolve(null),
+    }).render(true);
+  });
+}
+
+async function _showCyberizedBaseClassDialog() {
+  return new Promise(resolve => {
+    const options = CYBERIZED_BASE_CLASSES
+      .map((c, i) => `<option value="${i}">${c.name}${c.source === "rwc" ? " (RWC)" : ""}</option>`)
+      .join("");
+    new Dialog({
+      title: "Cyberized Human — Base Class",
+      content: `<div style="font-size:0.88em">
+        <p style="margin:0 0 8px">Your consciousness was once human. Choose the class that represents your prior life — this determines your saves and skills.</p>
+        <label><strong>Base Class:</strong>
+          <select id="cyberized-base-class" style="margin-left:8px;font-size:1em">${options}</select>
+        </label>
+      </div>`,
+      buttons: {
+        confirm: { label: "Confirm", callback: html => resolve(CYBERIZED_BASE_CLASSES[parseInt(html.find("#cyberized-base-class").val())]) },
+        cancel:  { label: "Cancel",  callback: () => resolve(null) },
+      },
+      default: "confirm",
+      close: () => resolve(null),
+    }).render(true);
+  });
+}
+
+async function _applyCyberizedHumanStats(actor, baseClass) {
+  const STATS = ["strength", "speed", "intellect", "combat", "sanity", "fear", "body"];
+  const updates = {};
+  for (const stat of STATS) {
+    const delta = (baseClass.adj[stat] ?? 0) - (_ANDROID_BASE_ADJ[stat] ?? 0);
+    if (delta === 0) continue;
+    const current = foundry.utils.getProperty(actor, `system.stats.${stat}.value`) ?? 0;
+    updates[`system.stats.${stat}.value`] = current + delta;
+  }
+  const woundDelta = (baseClass.adj.max_wounds ?? 0) - (_ANDROID_BASE_ADJ.max_wounds ?? 0);
+  if (woundDelta !== 0) {
+    updates["system.hits.max"] = (foundry.utils.getProperty(actor, "system.hits.max") ?? 2) + woundDelta;
+  }
+  if (Object.keys(updates).length) await actor.update(updates);
+}
+
+async function _applyCyberizedHumanSkills(actor, baseClass) {
+  // Remove Android's granted skills
+  const androidSkillIds = new Set(_ANDROID_SKILLS_GRANTED.map(u => u.split(".").pop()));
+  const toRemove = actor.items.filter(i => i.type === "skill" && androidSkillIds.has(i.flags?.core?.sourceId?.split?.(".")?.pop?.() ?? "") );
+  if (toRemove.length) {
+    await actor.deleteEmbeddedDocuments("Item", toRemove.map(i => i.id));
+  }
+  // Grant base class skills
+  for (const skillUuid of (baseClass.skills ?? [])) {
+    try {
+      const item = await fromUuid(skillUuid);
+      if (item) await actor.createEmbeddedDocuments("Item", [item.toObject()]);
+    } catch(e) {
+      console.warn(`${MODULE_ID} | Could not grant skill ${skillUuid}:`, e);
+    }
+  }
+}
+
+async function _promptAndroidSubtype(actor) {
+  if (actor.getFlag(MODULE_ID, "androidSubtype") != null) return;
+  if (!actor.system.class.value.startsWith("Android")) return;
+
+  const subtype = await _showAndroidSubtypeDialog();
+  if (!subtype) return;
+
+  let baseClass = null;
+  if (subtype === "cyberized") {
+    baseClass = await _showCyberizedBaseClassDialog();
+    if (!baseClass) return;
+    await _applyCyberizedHumanStats(actor, baseClass);
+    await _applyCyberizedHumanSkills(actor, baseClass);
+  }
+
+  // Roll roleplay table
+  const tableId = ANDROID_SUBTYPE_TABLES[subtype];
+  const tableUuid = `Compendium.${MODULE_ID}.rolltables_traaash_1e.RollTable.${tableId}`;
+  let featureText = "";
+  try {
+    const table = await fromUuid(tableUuid);
+    if (table) {
+      const roll = await table.roll();
+      featureText = roll.results[0]?.text ?? "";
+    }
+  } catch(e) {
+    console.warn(`${MODULE_ID} | Could not roll Android subtype table:`, e);
+  }
+
+  // Store flags
+  await actor.setFlag(MODULE_ID, "androidSubtype", subtype);
+  await actor.setFlag(MODULE_ID, "androidSubtypeFeature", featureText);
+  if (baseClass) await actor.setFlag(MODULE_ID, "androidBaseClass", baseClass.name);
+
+  // Update class name to include subtype in sheet header
+  const subtypeLabel = { bioroid: "Bioroid", synthetic: "Synthetic", cyberized: "Cyberized Human" }[subtype];
+  const className = baseClass
+    ? `Android (${subtypeLabel} / ${baseClass.name})`
+    : `Android (${subtypeLabel})`;
+  await actor.update({ "system.class.value": className });
+
+  // Post to chat
+  _androidSubtypeChatMsg(actor, subtypeLabel, featureText, baseClass?.name);
+
+  // Re-render any open sheets
+  for (const app of Object.values(ui.windows)) {
+    if (app.actor?.id === actor.id) app.render(false);
+  }
+}
+
+function _androidSubtypeChatMsg(actor, subtypeLabel, featureText, baseClassName) {
+  const BORDER = { Bioroid: "#1a4a2a", Synthetic: "#1a2a4a", "Cyberized Human": "#3a1a4a" };
+  const border = BORDER[subtypeLabel] ?? "#2a2a2a";
+  let content = `<div style="border:1px solid ${border};padding:6px 10px;border-radius:3px;font-family:inherit">
+    <div style="font-weight:bold;text-transform:uppercase;letter-spacing:1px;font-size:0.82em;margin-bottom:4px">Android Subtype — ${subtypeLabel}</div>`;
+  if (baseClassName) {
+    content += `<div style="font-size:0.88em;margin-bottom:4px"><em>Base class:</em> ${baseClassName}</div>`;
+  }
+  if (featureText) {
+    content += `<div style="font-style:italic;font-size:0.88em">${featureText}</div>`;
+  }
+  content += `</div>`;
+  ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content });
+}
+
+function _buildAndroidSubtypeSection(actor, subtype) {
+  const subtypeLabel = { bioroid: "Bioroid", synthetic: "Synthetic", cyberized: "Cyberized Human" }[subtype] ?? subtype;
+  const feature = actor.getFlag(MODULE_ID, "androidSubtypeFeature") ?? "";
+  const baseClass = actor.getFlag(MODULE_ID, "androidBaseClass") ?? null;
+  const COLORS = { bioroid: "rgba(26,74,42,0.4)", synthetic: "rgba(26,42,74,0.4)", cyberized: "rgba(58,26,74,0.4)" };
+  const borderColor = COLORS[subtype] ?? "rgba(40,40,40,0.35)";
+  const RULES = {
+    bioroid: [
+      "Biological: Functions as a human, including cryo for hyperspace jumps.",
+      "Detection: Cybernetic Diagnostic Scanner won't work (crit success exposes them). Medscanner works but exposes them on a crit success.",
+    ],
+    synthetic: [
+      "Synthetic: Doesn't sleep, breathe, eat, or age. Cannot be healed normally. Immune to poison and disease. Vulnerable to EMPs.",
+      "Charging: Must charge for 6 hours once per week or shut down.",
+      "Repair: Intelligence (+Mechanical Repair / Engineering / Robotics / Jury Rigging), 1 hour, 1 Scrap. Success heals HP equal to roll; crit success doubles; crit fail loses 1d10 HP.",
+      "Panic: Roll on the Android Panic Table instead of the standard table.",
+    ],
+    cyberized: [
+      `Human on the Inside: Base class — ${baseClass ?? "chosen class"}. Android Fear rules apply.`,
+      "The Shell: Uses Synthetic and Charging rules. Can use Cybernetics skill to heal.",
+      "Cyberbrain Transfer: Cyberbrain can be removed and transferred to another compatible body. Takes 1d10 hours.",
+    ],
+  };
+  const rules = RULES[subtype] ?? [];
+  const rulesHtml = rules.map(r => `<li style="margin-bottom:2px">${r}</li>`).join("");
+  const featureHtml = feature
+    ? `<p style="margin:6px 0 0;font-size:0.88em;font-style:italic">Roleplay feature: ${feature}</p>`
+    : "";
+  return $(`<div class="traaash-android-subtype-section" style="border:1px solid ${borderColor};border-radius:3px;padding:8px 10px;margin-bottom:12px">
+    <div style="margin-bottom:4px">
+      <span style="font-weight:bold;text-transform:uppercase;letter-spacing:1px;font-size:0.78em">Android Subtype — ${subtypeLabel}</span>
+    </div>
+    <ul style="margin:0 0 2px;padding-left:16px;font-size:0.82em;color:#555;line-height:1.5">${rulesHtml}</ul>
+    ${featureHtml}
+  </div>`);
+}
+
+Hooks.on("renderActorSheet", (app, html, _data) => {
   const actor = app.actor;
   if (!actor || actor.type !== "character") return;
 
@@ -955,18 +1193,25 @@ Hooks.on("renderActorSheet", (app, html, _data) => {
   const $bioTab = $html.find('.tab[data-tab="description"]').first();
   if (!$bioTab.length) return;
 
-  const company = actor.getFlag(MODULE_ID, "company");
-  const valueHtml = company
-    ? `<p style="margin:0;font-size:0.88em">${company}</p>`
-    : `<p style="margin:0;font-size:0.88em;color:#888;font-style:italic">Not yet rolled.</p>`;
+  // Android Subtype block — prepend first so Company ends up above it
+  if (game.settings.get(MODULE_ID, "enableAndroidSubtype")) {
+    const subtype = actor.getFlag(MODULE_ID, "androidSubtype");
+    if (subtype) $bioTab.prepend(_buildAndroidSubtypeSection(actor, subtype));
+  }
 
-  const $section = $(`<div class="traaash-company-section" style="border:1px solid rgba(139,26,26,0.35);border-radius:3px;padding:8px 10px;margin-bottom:12px">
-    <div style="margin-bottom:3px">
-      <span style="font-weight:bold;text-transform:uppercase;letter-spacing:1px;font-size:0.78em;color:#8b1a1a">The Company</span>
-    </div>
-    <p style="margin:0 0 6px;font-size:0.78em;color:#888;font-style:italic">Motivation to carry out the mission, even in the face of the horrors to come.</p>
-    ${valueHtml}
-  </div>`);
-
-  $bioTab.prepend($section);
+  // The Company block — prepend last so it appears at the very top
+  if (game.settings.get(MODULE_ID, "enableCompany")) {
+    const company = actor.getFlag(MODULE_ID, "company");
+    const valueHtml = company
+      ? `<p style="margin:0;font-size:0.88em">${company}</p>`
+      : `<p style="margin:0;font-size:0.88em;color:#888;font-style:italic">Not yet rolled.</p>`;
+    const $section = $(`<div class="traaash-company-section" style="border:1px solid rgba(139,26,26,0.35);border-radius:3px;padding:8px 10px;margin-bottom:12px">
+      <div style="margin-bottom:3px">
+        <span style="font-weight:bold;text-transform:uppercase;letter-spacing:1px;font-size:0.78em;color:#8b1a1a">The Company</span>
+      </div>
+      <p style="margin:0 0 6px;font-size:0.78em;color:#888;font-style:italic">Motivation to carry out the mission, even in the face of the horrors to come.</p>
+      ${valueHtml}
+    </div>`);
+    $bioTab.prepend($section);
+  }
 });

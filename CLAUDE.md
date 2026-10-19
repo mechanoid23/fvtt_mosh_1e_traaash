@@ -10,7 +10,7 @@ NeDB compendium packs — one JSON document per line in `.db` files under `packs
 
 | Pack file | Content |
 |---|---|
-| `rolltables_traaash_1e.db` | "The Company" (1d10) and "Jubilee — Debt Source" (1d10) rolltables |
+| `rolltables_traaash_1e.db` | "The Company" (1d10), "Jubilee — Debt Source" (1d10), "Android Panic Table" (2d10), and three Android subtype roleplay tables |
 | `macros_traaash_1e.db` | "Roll: The Company" macro |
 | `items_pet_skills_1e.db` | 17 pet skills (7 Trained / 5 Expert / 5 Master) with prerequisite tree — stored as `type: "pet_skill"` (not `"skill"`) so MCG's skill picker, which scans all Item compendiums for `d.type === "skill"`, does not include them |
 
@@ -21,6 +21,9 @@ NeDB compendium packs — one JSON document per line in `.db` files under `packs
 | The Company | `CompanyMotiv1e01` |
 | Jubilee — Debt Source | `JubileeDebtD10X1` |
 | Android Panic Table | `AndroidPanic1e01` |
+| Android Subtype: Bioroid | `AndrSubBioroid01` |
+| Android Subtype: Synthetic | `AndrSubSynthtic1` |
+| Android Subtype: Cyberized Human | `AndrSubCyberz001` |
 
 ## Macro IDs
 
@@ -40,6 +43,7 @@ Settings are registered in `init` (required by Foundry before `ready`). Each fea
 |---|---|---|---|
 | `enableCompany` | `true` | Fully wired | Suppresses `traaash.skillsChosen` listener, `createItem` watcher, and `renderActorSheet` Bio tab injection |
 | `enablePetSkills` | `true` | Fully wired | Suppresses the `renderItemSheet` pet skill tree injection. Compendium pack is always present (Foundry cannot hide declared packs at runtime), but the in-sheet tracker is hidden when off. |
+| `enableAndroidSubtype` | `true` | Fully wired | Suppresses the Android subtype dialog after class assignment, and hides the subtype block in the Bio tab. |
 
 New feature settings should be added here following the same pattern. If a future feature has a runtime hook, guard it with `game.settings.get(MODULE_ID, "<key>")` at the top of that hook handler.
 
